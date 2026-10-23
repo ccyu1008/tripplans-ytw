@@ -1,12 +1,14 @@
 <!doctype html>
 <html lang="zh-Hant">
 <meta charset="utf-8">
-<meta name="robots" content="noindex, nofollow">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>海岸到海岸健行手冊</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>橫跨不列顛</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=DM+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.js"></script>
+<script src="https://unpkg.com/maplibre-contour@0.1.0/dist/index.min.js"></script>
 <style>
-/* Layout: one column like a trail guide; CAI red-white-red waymark stripe as the only ornament; days as a signposted list. */
+/* Layout: one column like a trail guide; CAI red-white-red waymark stripe as the only ornament; a sticky schematic map follows the day you pick. */
 :root {
   --bg: #eceeef;
   --surface: #f8f9f9;
@@ -17,6 +19,7 @@
   --red-tint: rgba(200, 50, 42, .12);
   --green: #2f5d50;
   --gold: #a8741a;
+  --transit: #6f8a99;
   --f-display: "Big Shoulders Display", "Noto Sans TC", sans-serif;
   --f-body: "Noto Sans TC", system-ui, sans-serif;
   --f-mono: "DM Mono", ui-monospace, monospace;
@@ -24,13 +27,13 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #12191b; --surface: #1b2427; --fg: #e6ebec; --muted: #94a3a8; --line: #2e3b3f;
-    --red: #ec6a60; --red-tint: rgba(236, 106, 96, .16); --green: #7fb8a6; --gold: #d9a441;
+    --red: #ec6a60; --red-tint: rgba(236, 106, 96, .16); --green: #7fb8a6; --gold: #d9a441; --transit: #8aa5b3;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #12191b; --surface: #1b2427; --fg: #e6ebec; --muted: #94a3a8; --line: #2e3b3f;
-  --red: #ec6a60; --red-tint: rgba(236, 106, 96, .16); --green: #7fb8a6; --gold: #d9a441;
+  --red: #ec6a60; --red-tint: rgba(236, 106, 96, .16); --green: #7fb8a6; --gold: #d9a441; --transit: #8aa5b3;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -40,28 +43,117 @@ body {
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
-.wrap { max-width: 880px; margin: 0 auto; display: grid; gap: 40px; }
+html { overflow-anchor: none; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); background: var(--bg); z-index: 30; }
+.wrap { max-width: 880px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; }
 .stripe { height: 14px; margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); background: linear-gradient(var(--red) 0 33%, #fff 33% 66%, var(--red) 66%); }
 :root[data-theme="dark"] .stripe { background: linear-gradient(var(--red) 0 33%, #e6ebec 33% 66%, var(--red) 66%); }
 header { padding-top: 32px; display: grid; gap: 14px; }
 .eyebrow { font: 500 12px var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 h1 { font: 800 clamp(44px, 9vw, 76px)/.95 var(--f-display); letter-spacing: .01em; margin: 0; text-wrap: balance; }
 h1 em { font-style: normal; color: var(--red); }
+.subt { margin: -4px 0 0; font: 700 clamp(17px, 4.6vw, 24px)/1.4 var(--f-body); letter-spacing: .04em; }
 .lede { max-width: 62ch; color: var(--muted); margin: 0; }
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+@media (min-width: 560px) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .stats div { background: var(--surface); padding: 12px 14px; min-width: 0; }
 .stats b { display: block; font: 800 28px/1.1 var(--f-display); font-variant-numeric: tabular-nums; }
 .stats span { font-size: 12px; color: var(--muted); }
 h2 { font: 800 28px/1.1 var(--f-display); letter-spacing: .03em; margin: 0 0 14px; display: flex; align-items: center; gap: 10px; }
-h2::before { content: ""; width: 10px; height: 22px; background: var(--red); }
+h2::before { content: ""; width: 10px; height: 22px; background: var(--red); flex: none; }
 .note { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
-.plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
 .plan { font: inherit; text-align: left; color: var(--fg); background: var(--surface); border: 1px solid var(--line); padding: 12px 14px; cursor: pointer; display: grid; gap: 4px; align-content: start; }
 .plan b { font: 800 26px/1 var(--f-display); }
 .plan span { font-size: 13px; color: var(--muted); }
 .plan:hover { border-color: var(--muted); }
 .plan[aria-pressed="true"] { border-color: var(--red); background: var(--red-tint); box-shadow: inset 0 -3px 0 var(--red); }
 .plan em { font: 500 11px var(--f-mono); font-style: normal; color: var(--red); }
+.plan small { font: 400 11px var(--f-mono); color: var(--muted); }
+[hidden] { display: none !important; }
+.mbox { width: min(1120px, 100%); }
+#realmap { width: 100%; height: min(70vh, 760px); height: min(70dvh, 760px); background: var(--bg); }
+#realwrap { width: 100%; display: grid; gap: 6px; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; justify-self: stretch !important; align-items: center; }
+.daynav { display: flex; align-items: center; gap: 12px; justify-content: space-between; width: 100%; }
+.daynav span { flex: 1; text-align: center; font: 500 13px var(--f-mono); color: var(--muted); min-width: 0; }
+.daynav .btn { justify-self: auto !important; flex: none; }
+.daynav .btn:disabled { opacity: .4; cursor: default; }
+.tabs .sep { color: var(--line); } .tabs .btn { justify-self: auto !important; text-decoration: none; display: inline-block; }
+.tabs .btn[aria-pressed="true"] { border-color: var(--red); background: var(--red-tint); }
+#bigclose { margin-left: auto; }
+.rm { width: 14px; height: 14px; cursor: pointer; }
+.rm i { position: absolute; inset: 0; border-radius: 50%; background: #1c2a2e; border: 2px solid #fff; }
+.rm span { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); white-space: nowrap; background: rgba(255, 255, 255, .92); color: #1c2a2e; font: 500 11px "DM Mono", monospace; padding: 1px 5px; border-radius: 3px; }
+.rm.now i { background: #d63a30; width: 18px; height: 18px; inset: -2px; }
+.rm.now span { background: #d63a30; color: #fff; left: 20px; }
+.maplibregl-map { font-family: var(--f-body); }
+#modal { position: fixed; inset: 0; z-index: 50; background: rgba(8, 14, 16, .6); display: grid; place-items: center; padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
+.mbox { background: var(--surface); border: 1px solid var(--line); padding: 10px; display: grid; gap: 6px; justify-items: center; max-height: 100%; overflow: auto; }
+.mbox .btn { justify-self: end; }
+.mbox .note { margin: 0; }
+.ph { border: 0; padding: 0; background: var(--line); cursor: zoom-in; position: relative; overflow: hidden; display: block; }
+.ph img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.ph-lead { margin: 10px 10px 10px 0; align-self: start; width: 132px; height: 88px; }
+.ph-lead span { position: absolute; right: 4px; bottom: 4px; background: rgba(0, 0, 0, .65); color: #fff; font: 500 11px var(--f-mono); padding: 0 7px; border-radius: 99px; }
+.ph-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
+.ph-strip .ph { aspect-ratio: 16 / 10; width: 100%; }
+.ph-more { grid-column: 1 / -1; font-size: 12px; color: var(--red); }
+.day.has-ph { grid-template-columns: 84px minmax(0, 1fr); }
+.day.has-ph.active { grid-template-columns: 84px minmax(0, 1fr); }
+.day.active .ph-strip { display: grid; }
+.day.active .ph-lead { display: none; }
+@media (max-width: 640px) {
+  .day.has-ph { grid-template-columns: 64px minmax(0, 1fr); }
+  .day.has-ph.active { grid-template-columns: 64px minmax(0, 1fr); }
+  .ph-lead { grid-column: 2; width: auto; height: 110px; margin: 0 12px 12px 16px; }
+}
+#lb { position: fixed; inset: 0; z-index: 60; background: rgba(6, 10, 12, .9); display: grid; place-items: center; padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
+.lbbox { display: grid; gap: 10px; justify-items: center; max-width: min(1100px, 100%); }
+.lbbox .btn { justify-self: end; }
+#lbimg { max-width: 100%; max-height: 72vh; max-height: 72dvh; object-fit: contain; background: #111; }
+#lbcap { color: #e6ebec; font-size: 14px; text-align: center; display: grid; gap: 2px; }
+#lbcap small { color: #9fb0b5; font-size: 12px; } #lbcap a { color: #f0a29b; }
+.lbnav { display: flex; gap: 10px; }
+.steps { list-style: none; margin: 2px 0; padding: 0; display: grid; gap: 4px; }
+.steps li { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 10px; font-size: 14px; }
+.steps b { font: 500 12px var(--f-mono); color: var(--muted); padding-top: 3px; }
+.day .warn { margin: 2px 0; background: var(--red-tint); padding: 6px 10px; border-left: 3px solid var(--red); font-size: 13.5px; color: var(--fg); }
+.day .alt { font-size: 13px; }
+.pill.nosig { color: var(--muted); }
+.notice { border: 1px solid var(--line); background: var(--surface); padding: 12px 16px; display: grid; gap: 6px; font-size: 14px; }
+.notice.red { border-left: 4px solid var(--red); }
+.notice ul, .notice ol { margin: 0; padding-left: 20px; color: var(--muted); }
+.notice li + li { margin-top: 3px; }
+.notice li b { color: var(--fg); }
+.cost-total td { font-weight: 700; border-top: 2px solid var(--fg); }
+@media (max-width: 520px) { .steps li { grid-template-columns: 64px minmax(0, 1fr); } }
+.day .tag .dn { font: 800 28px/1 var(--f-display); }
+.day .tag .dd { font: 400 11px var(--f-mono); color: var(--muted); }
+.day .tag .dalt { font-size: 11px; color: var(--muted); margin-top: 8px; }
+.day .tag .dalt b { display: block; font: 700 14px var(--f-mono); color: var(--fg); }
+.dsun { font: 400 10.5px/1.5 var(--f-mono); color: var(--muted); margin-top: 8px; }
+.dorig { margin: 0; font: 400 12px/1.5 var(--f-mono); color: var(--muted); }
+.ddesc { margin: 0; color: var(--muted); font-size: 14px; }
+.tl { list-style: none; margin: 4px 0; padding: 0; display: grid; gap: 5px; }
+.tl li { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 10px; font-size: 14px; }
+.tl .hh { font: 500 12px var(--f-mono); color: var(--muted); padding-top: 3px; }
+.tl li.hot .hh { color: var(--red); font-weight: 700; }
+.tl li.hot .ww { font-weight: 500; }
+.day .note { margin: 2px 0; padding: 8px 12px; background: var(--bg); font-size: 13.5px; border-left: 3px solid var(--line); color: var(--fg); }
+.day .note.warn { background: var(--red-tint); border-left-color: var(--red); }
+.stay { margin: 4px 0 0; font-size: 14px; }
+.nosig { margin-left: 8px; font: 500 11px var(--f-mono); color: var(--red); border: 1px solid var(--red); border-radius: 99px; padding: 0 8px; white-space: nowrap; }
+@media (max-width: 520px) { .tl li { grid-template-columns: 64px minmax(0, 1fr); } }
+td .btn { white-space: nowrap; }
+.dock.compact .fp { display: none; }
+.dock.compact .dock-in { grid-template-rows: 120px; }
+.dock.compact .info p, .dock.compact .info .key { display: none; }
+.dock.compact .mapbox { height: 110px; }
+.m-seg, .m-dot, .m-pulse { vector-effect: non-scaling-stroke; }
+.fp-n { font: 400 9.5px var(--f-mono); fill: var(--muted); }
+.fp-n.now { fill: var(--red); font-weight: 500; }
+.fp-n.fut { opacity: .75; }
 .chart { overflow-x: auto; border: 1px solid var(--line); background: var(--surface); }
 .chart svg { display: block; width: 100%; height: auto; }
 .chart text { font: 400 10px var(--f-mono); fill: var(--muted); }
@@ -70,10 +162,79 @@ h2::before { content: ""; width: 10px; height: 22px; background: var(--red); }
 .chart .ln { fill: none; stroke: var(--red); stroke-width: 2; }
 .chart .hut { fill: var(--red); stroke: var(--surface); stroke-width: 2; }
 .chart .town { fill: var(--surface); stroke: var(--muted); stroke-width: 2; }
-.legend { display: flex; gap: 18px; flex-wrap: wrap; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); position: sticky; left: 0; }
+.chart .ring { fill: none; stroke: var(--fg); stroke-width: 2; }
+.chart [data-d] { cursor: pointer; }
+.chart .ln.bus { stroke: var(--transit); stroke-dasharray: 5 4; }
+.profrow { display: flex; align-items: center; gap: 8px; font: 400 11px var(--f-mono); color: var(--muted); margin-top: 2px; }
+.profrow span { flex: none; min-width: 56px; }
+.profrow span:last-child { text-align: right; }
+.prof { flex: 1; min-width: 0; height: 48px; display: block; }
+.prof .ar { fill: var(--red-tint); }
+.prof .w, .prof .b { vector-effect: non-scaling-stroke; stroke-linecap: round; fill: none; }
+.prof .w { stroke: var(--red); stroke-width: 2; }
+.prof .b { stroke: var(--transit); stroke-width: 1.6; stroke-dasharray: 4 3; }
+.prof .base { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+@media (max-width: 520px) { .info .profrow { display: none; } }
+.legend { display: flex; gap: 18px; flex-wrap: wrap; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+
+/* sticky map dock */
+.trip { display: grid; gap: 12px; align-content: start; }
+.dock { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--bg); padding-block: 8px; }
+.dock-in { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: 168px auto; gap: 14px; row-gap: 4px; border: 1px solid var(--line); background: var(--surface); padding: 10px; }
+.mapbox { height: clamp(120px, 18vh, 170px); aspect-ratio: 400 / 520; max-width: 44vw; }
+.fp { grid-column: 1 / -1; min-width: 0; border-top: 1px solid var(--line); padding-top: 2px; cursor: pointer; }
+.fp svg { display: block; max-width: 100%; }
+.fp-base { stroke: var(--line); stroke-width: 1; }
+.fp-l { stroke-linecap: round; }
+.fp-l.fut { stroke: var(--fg); opacity: .3; stroke-width: 1.5; }
+.fp-l.past { stroke: var(--muted); opacity: .7; stroke-width: 2; }
+.fp-l.now { stroke: var(--red); stroke-width: 3; }
+.fp-l.bus { stroke-dasharray: 4 3; }
+.fp-d.fut { fill: var(--surface); stroke: var(--muted); stroke-width: 1.2; opacity: .6; }
+.fp-d.past { fill: var(--muted); opacity: .7; }
+.fp-d.now { fill: var(--red); stroke: var(--surface); stroke-width: 2; }
+.fp-band { fill: var(--red-tint); }
+.fp-t { font: 400 9px var(--f-mono); fill: var(--muted); }
+.fp-t.now { fill: var(--red); font-weight: 500; font-size: 10.5px; }
+.mapbox svg { width: 100%; height: 100%; display: block; }
+.info { min-width: 0; min-height: 0; overflow: hidden; display: grid; gap: 4px; align-content: start; }
+.info .when { font: 500 12px var(--f-mono); color: var(--red); letter-spacing: .06em; }
+.info h3 { margin: 0; font: 700 16px/1.4 var(--f-body); text-wrap: balance; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.info p { margin: 0; font-size: 13px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.nav { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; align-items: center; }
+.btn { font: 500 13px var(--f-body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); padding: 4px 12px; cursor: pointer; }
+.btn:hover { border-color: var(--red); }
+.key { font: 400 11px var(--f-mono); color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; }
+.key i { display: inline-block; width: 18px; border-top: 3px solid var(--red); vertical-align: middle; margin-right: 4px; }
+.key i.t { border-top: 2px dashed var(--muted); }
+.key i.g { border-top-color: var(--muted); }
+
+.m-bg { fill: var(--bg); }
+.m-zone { font: 500 9px var(--f-mono); letter-spacing: .14em; fill: var(--line); }
+.m-seg { fill: none; stroke-linecap: round; }
+.m-seg.walk { stroke: var(--line); stroke-width: 2; }
+.m-seg.bus { stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.m-seg.done.walk { stroke: var(--muted); stroke-width: 2.5; opacity: .7; }
+.m-seg.done.bus { stroke: var(--muted); stroke-width: 1.8; opacity: .7; }
+.m-seg.now.walk { stroke: var(--red); stroke-width: 4.5; }
+.m-seg.now.bus { stroke: var(--red); stroke-width: 3; }
+.m-seg.now { animation: march 1.2s linear infinite; stroke-dasharray: 8 6; }
+@keyframes march { to { stroke-dashoffset: -14; } }
+.m-dot { fill: var(--surface); stroke: var(--muted); stroke-width: 1.6; }
+.m-dot.seen { fill: var(--muted); stroke: var(--surface); }
+.m-dot.now { fill: var(--fg); stroke: var(--red); stroke-width: 3; }
+.m-pulse { fill: none; stroke: var(--red); stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: pulse 1.8s ease-out infinite; }
+@keyframes pulse { from { transform: scale(.6); opacity: .9; } to { transform: scale(2.4); opacity: 0; } }
+.m-lab { font: 400 9.5px var(--f-mono); fill: var(--muted); }
+.m-lab.seen { fill: var(--fg); }
+.m-lab.now { fill: var(--fg); font-weight: 500; font-size: 11px; }
+@media (prefers-reduced-motion: reduce) { .m-seg.now, .m-pulse { animation: none; } }
+
 .days { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
-.day { display: grid; grid-template-columns: 84px minmax(0, 1fr); background: var(--surface); border: 1px solid var(--line); }
+.day { display: grid; grid-template-columns: 84px minmax(0, 1fr); background: var(--surface); border: 1px solid var(--line); cursor: pointer; scroll-margin-top: var(--dockh, 320px); }
+.day:hover { border-color: var(--muted); }
+.day.active { border-color: var(--red); box-shadow: inset 4px 0 0 var(--red); background: var(--red-tint); }
 .day .tag { padding: 12px; border-right: 1px solid var(--line); display: grid; align-content: start; gap: 2px; }
 .day .tag b { font: 800 28px/1 var(--f-display); }
 .day .tag span { font: 400 11px var(--f-mono); color: var(--muted); }
@@ -84,176 +245,996 @@ h2::before { content: ""; width: 10px; height: 22px; background: var(--red); }
 .meta .bed { color: var(--fg); }
 .pill { font: 500 11px var(--f-mono); padding: 1px 8px; border: 1px solid currentColor; border-radius: 99px; }
 .lv-0 { color: var(--muted); } .lv-1 { color: var(--green); } .lv-2 { color: var(--gold); } .lv-3 { color: var(--red); }
-.day.fly { background: transparent; border-style: dashed; }
+.day.fly { border-style: dashed; }
 .day.rest { border-left: 4px solid var(--green); }
+
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
 .box { background: var(--surface); border: 1px solid var(--line); padding: 14px 16px; min-width: 0; }
 .box h3 { margin: 0 0 6px; font: 700 15px var(--f-body); }
 .box ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
 .box li + li { margin-top: 4px; }
+.stack { display: grid; gap: 22px; }
+.sub { font: 700 17px var(--f-body); margin: 0 0 8px; }
+.timeline { margin: 0; padding: 0; list-style: none; display: grid; gap: 0; border-left: 2px solid var(--line); margin-left: 6px; }
+.timeline li { position: relative; padding: 0 0 14px 18px; }
+.timeline li::before { content: ""; position: absolute; left: -7px; top: 8px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2px solid var(--red); }
+.timeline b { font: 500 12px var(--f-mono); color: var(--red); display: block; letter-spacing: .05em; }
+.timeline span { font-size: 14px; color: var(--fg); }
+.table-scroll { overflow-x: auto; border: 1px solid var(--line); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 500 12px var(--f-mono); letter-spacing: .08em; color: var(--muted); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td small { display: block; color: var(--muted); font-size: 12px; line-height: 1.5; }
+td a { color: var(--red); }
+.pri { font: 500 11px var(--f-mono); padding: 1px 8px; border: 1px solid currentColor; border-radius: 99px; white-space: nowrap; }
+.pri-3 { color: var(--red); } .pri-2 { color: var(--gold); } .pri-1 { color: var(--muted); }
 .check { list-style: none; padding: 0 !important; display: grid; gap: 2px; }
 .check label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; padding: 3px 0; color: var(--fg); }
-.check input { margin-top: 5px; accent-color: var(--red); }
+.check input { margin-top: 5px; accent-color: var(--red); flex: none; }
 .check input:checked + span { color: var(--muted); text-decoration: line-through; }
 :focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
 .fine { font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; }
-@media (max-width: 480px) { .day { grid-template-columns: 64px minmax(0, 1fr); } .day .tag { padding: 10px 8px; } }
-</style>
-<style>
-.stripe { background: linear-gradient(var(--green) 0 50%, #2b6f9e 50%); }
+@media (max-width: 520px) {
+  .day { grid-template-columns: 64px minmax(0, 1fr); } .day .tag { padding: 10px 8px; }
+  .dock-in { gap: 10px; padding: 8px; } .info p { -webkit-line-clamp: 2; } .info h3 { font-size: 14px; }
+  .mapbox { height: clamp(130px, 21vh, 190px); }
+}
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+.btn { touch-action: manipulation; }
+@media (max-width: 520px) {
+  body { font-size: 14.5px; }
+  h1 { font-size: clamp(38px, 11vw, 52px); }
+  h2 { font-size: 24px; }
+  .lg { display: none; }
+  .dock { padding-block: 6px; }
+  .dock-in { grid-template-columns: 96px minmax(0, 1fr); grid-template-rows: 128px auto; gap: 8px; row-gap: 4px; padding: 8px; }
+  .mapbox { height: 128px; max-width: none; }
+  .info { gap: 2px; }
+  .info .when { font-size: 11px; }
+  .info h3 { font-size: 14px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .info p, .info .meta, .info .key { display: none; }
+  .nav { gap: 4px; margin-top: 2px; }
+  .nav .btn { padding: 0 7px; min-height: 26px; font-size: 11.5px; line-height: 1; }
+  .daynav .btn { padding: 0 9px; min-height: 28px; font-size: 12px; }
+  .dock.compact .mapbox { height: 96px; }
+  .dock.compact .dock-in { grid-template-rows: 96px; }
+  .fp { padding-top: 2px; }
+  .day { grid-template-columns: 62px minmax(0, 1fr); }
+  .day .tag { padding: 10px 6px; }
+  .day .tag .dn { font-size: 24px; }
+  .day .body { padding: 10px 12px; }
+  .day h3 { font-size: 16px; }
+  .dorig { font-size: 11.5px; overflow-wrap: anywhere; }
+  .tl li { grid-template-columns: 58px minmax(0, 1fr); gap: 8px; font-size: 13.5px; }
+  .day .note { padding: 7px 10px; font-size: 13px; }
+  .plans { grid-template-columns: 1fr 1fr; }
+  .stats b { font-size: 24px; }
+  .btn { min-height: 34px; }
+  .tabs { gap: 6px; }
+  .tabs .btn { padding: 0 9px; font-size: 12.5px; }
+  .tabs .sep { display: none; }
+  #bigclose { margin-left: 0; }
+  #realmap { height: min(58dvh, 560px); }
+  .mbox { padding: 8px; }
+  .daynav span { font-size: 11.5px; }
+  .grid2 { grid-template-columns: 1fr; }
+  .box { padding: 12px; }
+  .notice { padding: 10px 12px; font-size: 13.5px; }
+  .ph-lead { height: 96px; }
+}
+.fp-area { fill: var(--red-tint); }
+.fp-n.now { font-size: 9.5px; }
 </style>
 
+<style>
+.stripe { background: linear-gradient(var(--green) 0 50%, #2b6f9e 50%) !important; }
+.fp-area { fill: var(--red-tint); }
+</style>
 <div class="stripe"></div>
 <div class="wrap">
 <header>
   <div class="eyebrow" id="eyebrow"></div>
-  <h1>海岸到海岸<em>健行</em></h1>
+  <h1>橫跨<em>不列顛</em></h1>
   <p class="lede" id="lede"></p>
   <div class="stats" id="stats"></div>
+  <div class="notice red" id="bookhint"></div>
 </header>
 
 <section>
   <h2>選擇天數</h2>
-  <p class="note">兩個方案都從 St Bees（愛爾蘭海）走到 Robin Hood's Bay（北海），以回程班機日往前推出發日。</p>
+  <p class="note">兩個方案都從 St Bees（愛爾蘭海）走到 Robin Hood's Bay（北海），都在 6 月 30 日搭機回台，出發日依天數往前推。</p>
   <div class="plans" id="plans"></div>
+  <div class="grid2" id="plandetail" style="margin-top:14px"></div>
 </section>
 
 <section>
   <h2>每晚過夜高度</h2>
-  <p class="note">實心點是沿途村鎮住宿，空心點是起訖與轉乘城鎮。</p>
+  <p class="note">實心點是沿途村鎮住宿，空心點是起訖與轉乘的城鎮，圓圈是目前選的那天，可以直接點。</p>
   <div class="chart"><div id="profile"></div>
-    <div class="legend"><span><i style="background:var(--red)"></i>步行住宿</span><span><i style="border:2px solid var(--muted)"></i>起訖／城鎮</span></div>
+    <div class="legend"><span><i style="background:var(--red)"></i>沿途住宿</span><span><i style="border:2px solid var(--muted)"></i>起訖／城鎮</span><span><i style="border:2px solid var(--fg)"></i>目前選的那天</span></div>
   </div>
 </section>
 
-<section>
+<section class="trip">
   <h2>逐日行程</h2>
+  <div class="notice red" id="nosig">
+    <b>走路前要知道的事</b>
+    <ul>
+      <li>谷地與荒原的手機訊號不穩，出發前先下載離線地圖、住宿電話與訂房確認信。</li>
+      <li>沿途有羊群與牛群，關好柵門；有牛群的牧場不要穿過牛群中間，繞邊走。</li>
+      <li>多數路段沒有水源與商店，每天出發前裝滿 1.5~2 公升水，午餐在前一晚請房東準備。</li>
+      <li>荒原與稜線沒有遮蔽，霧、強風、雷雨時改走低路線，不要硬撐。</li>
+      <li>緊急電話 999 或 112，山區遇難請說要找 Mountain Rescue。</li>
+    </ul>
+  </div>
+  <div class="notice" id="missable"></div>
+  <div class="dock" id="dock">
+    <div class="dock-in">
+      <div class="mapbox" id="map"></div>
+      <div class="info" id="info"></div>
+      <div class="fp" id="fp" title="當天或整趟的高度剖面"></div>
+    </div>
+  </div>
   <p class="note" id="daynote"></p>
   <ol class="days" id="days"></ol>
 </section>
 
-<section>
-  <h2>訂房與行李</h2>
-  <div class="grid2">
-    <div class="box"><h3>住宿預約</h3><ul>
-      <li>沿途 B&amp;B 和旅店不多，旺季（5~9 月）很早滿，行程確定就先訂，Rosthwaite、Patterdale、Keld、Danby Wiske、Blakey Ridge 最容易沒房。</li>
-      <li>Clay Bank 附近沒有住宿，要訂 Great Broughton 或 Chop Gate 一帶，多數民宿可接送。</li>
-      <li>Danby Wiske 房很少，訂不到可請民宿接送到鄰近村落。</li></ul></div>
-    <div class="box"><h3>預算與行李</h3><ul>
-      <li id="cash"></li>
-      <li>可用行李轉運服務（Sherpa Van、Packhorse 等），每件每天約 £10~15，日間只背水和雨具，這是估計值。</li>
-      <li>部分小村 ATM 少，現金帶一點備用。</li></ul></div>
+<section id="book">
+  <h2>訂住宿</h2>
+  <div class="stack">
+    <div>
+      <h3 class="sub">什麼時候要做什麼</h3>
+      <p class="note">我沒找到各住宿官方的開放預約日，下面的時間是依一般經驗抓的，要以各住宿官網或回信為準。</p>
+      <ul class="timeline" id="timeline"></ul>
+    </div>
+    <div>
+      <h3 class="sub">這個方案要訂的住宿</h3>
+      <p class="note">「搜尋」連結只是帶你去 Google 搜尋，我沒有逐一查證各家是否營業。有些村子只有一兩間，搜尋結果可能不完整。</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>住宿</th><th>入住</th><th>優先</th><th>建議何時訂</th><th>怎麼訂</th><th>備註</th><th></th></tr></thead>
+        <tbody id="huts"></tbody>
+      </table></div>
+    </div>
+    <div class="grid2">
+      <div class="box"><h3>訂房時要問清楚</h3><ul class="check" id="askcheck"></ul></div>
+      <div class="box"><h3>出發前清單</h3><ul class="check" id="check"></ul></div>
+    </div>
+    <div class="box"><h3>預約的幾個提醒</h3><ul>
+      <li>旺季（5~9 月）要預約。Keld、Danby Wiske、Patterdale、Rosthwaite 與 Lion Inn 都很早滿。</li>
+      <li>行李轉運公司通常也要預約，要和住宿一起排，行李放哪裡、幾點交件要問清楚。</li>
+      <li>要取消或改期一定要通知住宿，沒出現又沒通知，對方可能以為你們出事。</li>
+      <li>多數住宿只收現金或需要現場刷卡，部分小地方訊號差，現金帶一些備用。</li></ul></div>
   </div>
 </section>
 
 <section>
-  <h2>出發前清單</h2>
-  <div class="box"><ul class="check" id="check"></ul></div>
+  <h2>交通、票券與費用</h2>
+  <div class="stack">
+    <div class="grid2">
+      <div class="box"><h3>交通要點</h3><ul>
+        <li><b>抵達</b>：Manchester Airport → Carlisle 的火車時間我沒查證（估約 2.5~3 小時）。Carlisle → St Bees 是 Northern 海岸線直達，第三方網站寫約 1 小時 17~20 分、約每小時一班，週日班次少。</li>
+        <li><b>Clay Bank</b>：沒有公共交通與住宿，要和 Great Broughton 或 Chop Gate 的民宿約好接送。</li>
+        <li><b>回程</b>：Robin Hood's Bay → Whitby 是 Arriva X93（資料寫約每小時一班、季節性）；Whitby → York 是 840 Coastliner（2022 年約兩小時一班，要查現況），York → Manchester 火車時間我沒查證。</li>
+        <li><b>在英國用 Trainline 或鐵路公司官網</b>查時刻，提早買可選 advance 票，通常比當天便宜，要查規則。</li>
+      </ul></div>
+      <div class="box"><h3>票券與證件</h3><ul>
+        <li><b>英國 ETA</b>：台灣護照入境英國需先申請電子旅行許可，出發前到官方網站確認最新規定與費用。</li>
+        <li>行李轉運公司的預約要在出發前先做，不能到現場才排。</li>
+        <li>鎮上的城堡與修道院門票（Richmond Castle、Whitby Abbey 等）部分由 English Heritage 管理，開放時間與票價要查。</li>
+      </ul></div>
+    </div>
+    <div>
+      <h3 class="sub">費用估算（兩個人，不含機票）</h3>
+      <p class="note" id="costnote"></p>
+      <div class="table-scroll"><table style="min-width:520px">
+        <thead><tr><th>項目</th><th>英鎊</th><th>依據</th></tr></thead>
+        <tbody id="costs"></tbody>
+      </table></div>
+    </div>
+    <div class="box"><h3>容易漏掉的花費</h3><ul>
+      <li>旅平險要確認含健行與山區搜救，一般旅平險不一定涵蓋，費用我沒查。</li>
+      <li>住宿訂金：訂了不去可能拿不回來，取消規定要先問。</li>
+      <li>防水裝備：雨具、防水背包套與備用襪，英國天氣隨時會下雨。</li>
+      <li>錯過接駁而多住一晚、或臨時叫計程車，都是額外開銷。</li>
+    </ul></div>
+  </div>
 </section>
 
 <section>
   <h2>天氣與緊急</h2>
   <div class="grid2">
     <div class="box"><h3>天氣</h3><ul>
-      <li>英國天氣變化快，一天可能晴、雨、風都有，雨具隨身。</li>
-      <li>湖區高路線和 Nine Standards、North York Moors 荒原容易起霧，起霧或強風改走低路線。</li>
-      <li>用 Met Office 和 Mountain Weather Information Service 看預報。</li></ul></div>
+      <li>英國天氣一天內可能晴、雨、風都有，6 月氣溫約 10~20°C，荒原與稜線更冷更濕。</li>
+      <li>用 Met Office 與 Mountain Weather Information Service 看預報；高處看風速比降雨機率有用。</li>
+      <li>天氣差時，住宿主人會建議走哪條路線，聽他們的。高路線與荒原段霧中不要硬走。</li></ul></div>
     <div class="box"><h3>緊急</h3><ul>
       <li>英國緊急電話 999 或 112，山區遇難請說要找 Mountain Rescue。</li>
       <li>確認旅平險涵蓋健行與搜救。</li>
-      <li>跟住宿主人說明天的目的地和預計抵達時間。</li></ul></div>
+      <li>每天出發前告訴住宿你們預計抵達哪裡與何時，晚到要打電話通知。</li></ul></div>
   </div>
 </section>
 
-<p class="fine">此手冊依 Wainwright 的 Coast to Coast 常見分段整理，距離、爬升、時間、價格和住宿地點皆為概估，不是官方資料，請出發前對照 OS 地圖、路書和各住宿確認。Nine Standards 有依季節與保育狀態調整的路線，請以現場告示為準。</p>
+<p class="fine">此手冊依 Wainwright 的 Coast to Coast 常見分段整理，距離、爬升、時間、價格和住宿地點皆為概估，不是官方資料；每個步行日的到達時間是我用 GPX 的距離與爬升估算的，並對照網路上公布的前兩段步行時數（約 6~8 小時）調整，不是實測。距離、爬升與剖面來自你給的 GPX，路徑點與時間表為估算。座標取自 OpenStreetMap，少數點是依地形估的；示意圖的南北向放大約 8 倍，只能看順序與相對位置。Nine Standards 有依季節與保育狀態調整的路線，請以現場告示為準。出發前請對照 OS 地圖、當年路書與各住宿確認。照片全部來自 Wikimedia Commons，授權與攝影者列在大圖下方。交通資料來源：<a href="https://stbees.org.uk/?p=332" target="_blank" rel="noopener">St Bees 火車資訊</a>、<a href="https://bustimes.org/services/x93-guisborough-whitby" target="_blank" rel="noopener">X93 巴士時刻</a>、<a href="https://busandtrainuser.com/2022/10/20/more-moors-bus-journeys/" target="_blank" rel="noopener">840 Coastliner 說明（2022）</a>；前兩段步行時數參考 <a href="https://www.cumbriacountyhistory.org.uk/sites/default/files/appendix_2_details_of_the_coast_to_coast_way.pdf" target="_blank" rel="noopener">Cumbria 路線附錄</a>。</p>
+</div>
+
+<div id="lb" hidden>
+  <div class="lbbox">
+    <button class="btn" id="lbclose" type="button">關閉 ✕</button>
+    <img id="lbimg" alt="">
+    <div id="lbcap"></div>
+    <div class="lbnav"><button class="btn" id="lbprev" type="button">◀ 上一張</button><button class="btn" id="lbnext" type="button">下一張 ▶</button></div>
+  </div>
+</div>
+
+<div id="modal" hidden>
+  <div class="mbox">
+    <div class="tabs">
+      <button class="btn" id="tabReal" type="button" aria-pressed="true">實際地圖</button>
+      <button class="btn" id="tabSch" type="button" aria-pressed="false">示意圖</button>
+      <button class="btn" id="viewDay" type="button">看今天</button>
+      <button class="btn" id="viewAll" type="button">看全程</button>
+      <span class="sep" aria-hidden="true">|</span>
+      <button class="btn" id="baseClean" type="button" aria-pressed="true">簡潔</button>
+      <button class="btn" id="baseSat" type="button" aria-pressed="false">衛星</button>
+      <span class="sep" aria-hidden="true">|</span>
+      <button class="btn" id="tgContour" type="button" aria-pressed="true">等高線</button>
+      <button class="btn" id="tgTrails" type="button" aria-pressed="false">步道路線</button>
+      <a class="btn" id="gmap" href="#" target="_blank" rel="noopener">用 Google 地圖看今天</a>
+      <button class="btn" id="bigclose" type="button">關閉 ✕</button>
+    </div>
+    <div id="realwrap"><div id="realmap"></div><p class="note" id="realnote"></p></div>
+    <div id="bigmap" hidden></div>
+    <p class="note" id="schnote" hidden>點地名可跳到那天。示意圖，不依比例。</p>
+    <div class="daynav">
+      <button class="btn" id="mPrev" type="button">◀ 前一天</button>
+      <span id="mDay"></span>
+      <button class="btn" id="mNext" type="button">下一天 ▶</button>
+    </div>
+  </div>
 </div>
 
 <script>
 const $ = s => document.querySelector(s);
 const LV = ["", "輕鬆", "中等", "吃力"];
 const WD = "日一二三四五六";
-const END = [2027, 5, 30]; // 回程班機日 [年, 月-1, 日]，改這行即可換季節
+const num = n => n.toLocaleString();
 
-// st = [km, 上升 m, 下降 m]，全部為估計值
+
+// ---- 資料：座標取自 OpenStreetMap 的地名搜尋（Nominatim），少數點是我依地形估的，示意用 ----
+// [緯度, 經度]
+const RLOC = {man: [53.3503, -2.2804], car: [54.8903, -2.9330], stb: [54.4944, -3.5912], sbh: [54.5176, -3.6359], sw: [54.5169, -3.6014], enn: [54.5292, -3.4391],
+  ens: [54.5229, -3.3811], lof: [54.4984, -3.2301], hon: [54.5115, -3.1990], ros: [54.5230, -3.1492], stw: [54.5133, -3.1403], gue: [54.4830, -3.1066], gra: [54.4594, -3.0244],
+  gth: [54.4995, -3.0073], pat: [54.5371, -2.9425], bod: [54.5324, -2.9170], ang: [54.5211, -2.9019], kid: [54.5055, -2.8550], haw: [54.5190, -2.7880], sha: [54.5300, -2.6771],
+  od: [54.5143, -2.6283], ort: [54.4819, -2.5851], sbk: [54.4637, -2.5005], sl: [54.4566, -2.4230], kir: [54.4735, -2.3486], hrt: [54.4735, -2.3363], nin: [54.4500, -2.2705],
+  rav: [54.4290, -2.2000], kel: [54.4059, -2.1664], sw2: [54.4028, -2.1394], ree: [54.3893, -1.9421], mar: [54.3758, -1.8986], mrk: [54.3992, -1.8414], ric: [54.4031, -1.7375],
+  cat: [54.3892, -1.6514], dan: [54.3817, -1.4832], ing: [54.3993, -1.3090], osm: [54.3685, -1.2994], lm: [54.4036, -1.2281], cb: [54.4161, -1.2013], cm: [54.4187, -1.1722],
+  hb: [54.4229, -1.1255], cla: [54.4222, -1.1186], gbr: [54.4494, -1.1577], ur: [54.4090, -1.1062], bla: [54.3884, -0.9559], gla: [54.4408, -0.8078], egt: [54.4369, -0.7611],
+  gro: [54.4359, -0.7245], lit: [54.4324, -0.6460], rhb: [54.4332, -0.5345], whi: [54.4848, -0.6152], yor: [53.9580, -1.0931]};
+const SHORT = {man: "Manchester", car: "Carlisle", stb: "St Bees", sbh: "St Bees Head", sw: "Sandwith", enn: "Ennerdale Br.", ens: "Ennerdale Water", lof: "Loft Beck", hon: "Honister",
+  ros: "Rosthwaite", stw: "Stonethwaite", gue: "Greenup Edge", gra: "Grasmere", gth: "Grisedale Tarn", pat: "Patterdale", bod: "Boredale Hause", ang: "Angle Tarn", kid: "Kidsty Pike",
+  haw: "Haweswater", sha: "Shap", od: "Oddendale", ort: "Orton", sbk: "Sunbiggin", sl: "Smardale", kir: "Kirkby Stephen", hrt: "Hartley", nin: "Nine Standards", rav: "Ravenseat",
+  kel: "Keld", sw2: "Swinner Gill", ree: "Reeth", mar: "Marrick", mrk: "Marske", ric: "Richmond", cat: "Catterick Br.", dan: "Danby Wiske", ing: "Ingleby Cross", osm: "Osmotherley",
+  lm: "Live Moor", cb: "Carlton Bank", cm: "Cringle Moor", hb: "Hasty Bank", cla: "Clay Bank", gbr: "Gt Broughton", ur: "Urra Moor", bla: "Blakey Ridge", gla: "Glaisdale",
+  egt: "Egton Bridge", gro: "Grosmont", lit: "Littlebeck", rhb: "Robin Hood's Bay", whi: "Whitby", yor: "York"};
+const RNAME = {...SHORT, sbh: "St Bees Head 燈塔", ens: "Ennerdale Water", hon: "Honister Hause", kid: "Kidsty Pike（最高點）", nin: "Nine Standards Rigg", cla: "Clay Bank Top",
+  bla: "Lion Inn", rhb: "Robin Hood's Bay（終點）", stb: "St Bees（起點）", man: "Manchester Airport"};
+
+// 示意圖畫布 400 x 520：上方是西邊的愛爾蘭海，下方是東邊的北海，往右是北。南北向放大約 8 倍，所以只是示意，不依比例
+const MANUAL = {man: [24, 215], car: [352, 70], yor: [34, 420]};
+const LOC = {};
+Object.keys(RLOC).forEach(id => {
+  const [la, lo] = RLOC[id];
+  LOC[id] = MANUAL[id] ? [...MANUAL[id], "", MANUAL[id][0] > 200 ? "l" : "r"] : (x => [x, 40 + (lo + 3.64) * 140, "", x > 205 ? "l" : "r"])(60 + (la - 54.36) * 1550);
+});
+const PROJ = ([la, lo]) => [+(60 + (la - 54.36) * 1550).toFixed(1), +(40 + (lo + 3.64) * 140).toFixed(1)];
+const ly = lo => 40 + (lo + 3.64) * 140;
+const ZONES = [["IRISH SEA ↑", 150, 18], ["LAKE DISTRICT", 8, ly(-3.2)], ["YORKSHIRE DALES", 8, ly(-2.1)], ["NORTH YORK MOORS", 8, ly(-1.0)], ["NORTH SEA ↓", 150, 508]];
+
+// st = [km, 上升 m, 下降 m]；est = 估計值；loc = 當晚位置；mv = 當天移動方式；via = 中途點（示意圖用）
+// wp = 當天的路徑點 [名稱, 累計 km, 標高 m, 備註, 重點]，用來畫每天的剖面、估每一段的到達時間
 const DEF = {
-  fly: {fly: 1, sleep: "機上", lv: 0},
-  arr: {t: "英國 → St Bees", r: "飛 Manchester 或 London，轉火車到 Carlisle，再搭海岸線到 St Bees。到海邊把腳浸一下愛爾蘭海，撿一顆小石子帶到終點丟進北海。", sleep: "St Bees 旅館", alt: 20, town: 1, lv: 0},
-  s1: {t: "St Bees → Ennerdale Bridge", r: "沿 St Bees Head 海崖走，再翻 Dent Fell 下到 Ennerdale Bridge。第一天就是長距離，起步別太快。", time: "約 7~8 小時", sleep: "Ennerdale Bridge", alt: 80, lv: 2, st: [23, 550, 480], est: 1},
-  s2: {t: "Ennerdale Bridge → Rosthwaite", r: "高路線走 Red Pike、High Stile、Haystacks，低路線沿 Ennerdale 湖到 Black Sail Hut 再上 Loft Beck，最後都下到 Borrowdale。天氣不好走低路線。", time: "約 8~9 小時", sleep: "Rosthwaite", alt: 100, lv: 3, tag: "湖區高路線", st: [23, 850, 870], est: 1},
-  s3: {t: "Rosthwaite → Grasmere", r: "經 Greenup Edge 翻到 Grasmere。路徑潮濕泥濘，起霧時 Greenup Edge 容易走錯，導航要看緊。", time: "約 5~6 小時", sleep: "Grasmere", alt: 60, lv: 2, st: [14, 550, 570], est: 1},
-  rest1: {t: "休息日：Grasmere", r: "湖區走完一半，休息一天，晾衣服、補給。", sleep: "Grasmere", alt: 60, lv: 0, rest: 1},
-  s4: {t: "Grasmere → Patterdale", r: "爬上 Grisedale Tarn 再下到 Patterdale。Helvellyn 繞路要手腳並用，不建議排進來。", time: "約 5~6 小時", sleep: "Patterdale", alt: 150, lv: 2, st: [13.5, 700, 700], est: 1},
-  s5: {t: "Patterdale → Shap", r: "越過 Angle Tarn 到 Kidsty Pike（約 780 m，全程最高點），再沿 Haweswater 下到 Shap Abbey 和 Shap。湖區最後一天。", time: "約 8 小時", sleep: "Shap", alt: 270, lv: 2, st: [25, 800, 770], est: 1},
-  s6: {t: "Shap → Kirkby Stephen", r: "進入 Eden 谷地，地形平緩但很長，沿途經過 Orton。全程最長的一天之一，早出發。", time: "約 8~9 小時", sleep: "Kirkby Stephen", alt: 130, lv: 2, st: [32, 450, 600], est: 1},
-  s7: {t: "Kirkby Stephen → Keld", r: "經 Nine Standards Rigg 的九座石塔，上段多沼澤，依現場告示選當季路線。下到 Swaledale 上游的小村 Keld。", time: "約 6~7 小時", sleep: "Keld", alt: 330, lv: 2, tag: "荒原沼澤", st: [20, 560, 350], est: 1},
-  s8: {t: "Keld → Reeth", r: "高路線走 Gunnerside Gill 舊礦區，低路線沿 Swale 河與草場，兩條都到 Reeth。起霧改走低路線。", time: "約 5~6 小時", sleep: "Reeth", alt: 200, lv: 1, st: [18, 300, 430], est: 1},
-  s9: {t: "Reeth → Richmond", r: "沿 Swale 河經 Marrick Priory，下午進到 Richmond，鎮上有城堡和市集廣場。", time: "約 5~6 小時", sleep: "Richmond", alt: 100, lv: 1, st: [18, 250, 380], est: 1},
-  rest2: {t: "休息日：Richmond", r: "補給、洗衣，逛 Richmond Castle。前面翻山很累，後面是平原段，休息一下。", sleep: "Richmond", alt: 100, lv: 0, rest: 1},
-  s10: {t: "Richmond → Danby Wiske", r: "進入平原，一整天都是田野，景色變化少，算是心理考驗。住宿很少，務必先訂。", time: "約 6~7 小時", sleep: "Danby Wiske", alt: 40, lv: 1, st: [22, 150, 200], est: 1},
-  s11: {t: "Danby Wiske → Osmotherley", r: "越過 A19，再爬到 North York Moors 山腳，傍晚抵達 Osmotherley。", time: "約 5~6 小時", sleep: "Osmotherley", alt: 180, lv: 1, st: [19, 250, 100], est: 1},
-  s12: {t: "Osmotherley → Clay Bank", r: "踏上 Cleveland Hills 稜線，一路上下好幾座小丘，風大無遮蔽。Clay Bank 沒有住宿，先訂 Great Broughton 或 Chop Gate 的民宿接送。", time: "約 6~7 小時", sleep: "Great Broughton / Chop Gate", alt: 150, lv: 2, st: [19, 700, 500], est: 1},
-  s13: {t: "Clay Bank → Blakey Ridge", r: "穿越荒原最高段，風景開闊。Lion Inn 是荒原上的老酒館，旺季常滿，先訂。", time: "約 5~6 小時", sleep: "Lion Inn（Blakey Ridge）", alt: 430, lv: 2, tag: "荒原無遮蔽", st: [17, 400, 300], est: 1},
-  s14: {t: "Blakey Ridge → Grosmont", r: "沿荒原邊緣下行，經過 Glaisdale，到 Grosmont 蒸汽火車站。", time: "約 5~6 小時", sleep: "Grosmont", alt: 15, lv: 1, st: [19, 150, 500], est: 1},
-  s15: {t: "Grosmont → Robin Hood's Bay", r: "最後一天，先走 Littlebeck 森林，再沿海岸到 Robin Hood's Bay。到海邊把石子丟進北海，完成儀式。", time: "約 7~8 小時", sleep: "Robin Hood's Bay 旅館", alt: 10, town: 1, lv: 2, st: [24, 500, 520], est: 1},
-  ret: {t: "Robin Hood's Bay → Whitby → 英國機場", r: "搭巴士到 Whitby，再轉火車或巴士到 York 或 London，回程班機當天要提早到機場，時刻先查。", sleep: "York 或 London 旅館", alt: 20, town: 1, lv: 0}
-};
-const W1 = ["s1","s2","s3","s4","s5","s6","s7","s8","s9","s10","s11","s12","s13","s14","s15"];
-const PLANS = {
-  15: {name: "15 天步行", sub: "標準分段", desc: "每天走一段，沒有休息日，走完 15 段。",
-    ids: ["fly","arr",...W1,"ret","fly"]},
-  17: {name: "17 天步行", sub: "標準 + 2 休息日", desc: "在 Grasmere 和 Richmond 各多住一晚，翻山之間有休息，遇到壞天氣也有緩衝。", pick: "建議",
-    ids: ["fly","arr","s1","s2","s3","rest1","s4","s5","s6","s7","s8","s9","rest2","s10","s11","s12","s13","s14","s15","ret","fly"]}
+  fly: {fly: 1, sleep: "機上", lv: 0, loc: "man"},
+  arr: {t: "曼徹斯特 → Carlisle → St Bees", r: "整天轉車到愛爾蘭海邊的 St Bees，傍晚先去海邊浸腳、撿一顆小石子，帶到終點丟進北海。", time: "交通約 5~7 小時", sleep: "St Bees 旅館", alt: 20, town: 1, lv: 0, loc: "stb", mv: "bus", via: "car"},
+  s1: {t: "St Bees → Ennerdale Bridge", r: "沿 St Bees Head 海崖走，再翻 Dent Fell 下到 Ennerdale Bridge。第一天就是長距離，起步別太快。", sleep: "Ennerdale Bridge", alt: 80, lv: 2, loc: "enn", mv: "walk", st: [23, 550, 480], est: 1, lunch: "Cleator 附近，或請房東前一晚準備便當",
+    wp: [["St Bees（愛爾蘭海）", 0, 20, "把腳浸海水、撿石子"], ["St Bees Head 燈塔", 4, 130, "海崖與海鳥，全程第一個景點", 1], ["Sandwith", 8, 60, "小村，補水"], ["Cleator", 13, 60, "較大的村，有商店，午餐點"], ["Dent Fell", 17, 352, "今天最高點，回頭看海", 1], ["Nannycatch", 20, 200, "下切到 Ennerdale 谷地"], ["Ennerdale Bridge", 23, 80]]},
+  s2: {t: "Ennerdale Bridge → Rosthwaite", r: "低路線沿 Ennerdale 湖到 Black Sail Hut，再上 Loft Beck 翻到 Honister，下到 Borrowdale；高路線走 Red Pike、High Stile、Haystacks，視野壯闊但很累。天氣不好走低路線。", sleep: "Rosthwaite", alt: 100, lv: 3, tag: "湖區長天", loc: "ros", mv: "walk", st: [23, 850, 870], est: 1,
+    wp: [["Ennerdale Bridge", 0, 80], ["Ennerdale Water 湖尾", 3, 110, "沿湖邊碎石步道"], ["Black Sail Hut", 13, 330, "偏遠的 YHA 山屋，可買熱飲，午餐點", 1], ["Loft Beck 頂", 16, 570, "陡升約 250 m，今天最累的一段", 1], ["Honister Hause", 18.5, 355, "Honister 板岩礦場與咖啡館"], ["Rosthwaite", 23, 100]]},
+  s3: {t: "Rosthwaite → Grasmere", r: "經 Greenup Edge 翻到 Grasmere。路徑潮濕泥濘，起霧時 Greenup Edge 容易走錯，導航要看緊。", sleep: "Grasmere", alt: 60, lv: 2, loc: "gra", mv: "walk", st: [14, 550, 570], est: 1,
+    wp: [["Rosthwaite", 0, 100], ["Stonethwaite", 2, 110, "經過 Bowder Stone 巨石附近的谷地"], ["Greenup Gill", 6, 380, "沿溪上升"], ["Greenup Edge", 8, 610, "稜線口，起霧容易迷路", 1], ["Far Easedale", 11, 300, "下切進 Easedale 谷"], ["Grasmere", 14, 60]]},
+  rest1: {t: "休息日：Grasmere", r: "湖區走完一半，休息一天，晾衣服、補給，順便去華茲華斯故居，或輕裝爬 Helm Crag。", sleep: "Grasmere", alt: 60, lv: 0, rest: 1, loc: "gra"},
+  s4: {t: "Grasmere → Patterdale", r: "爬上 Grisedale Tarn 再下到 Patterdale。Helvellyn 繞路要手腳並用，不建議排進來。", sleep: "Patterdale", alt: 150, lv: 2, loc: "pat", mv: "walk", st: [13.5, 700, 700], est: 1,
+    wp: [["Grasmere", 0, 60], ["Tongue Gill", 3, 200, "開始爬升"], ["Grisedale Hause", 6, 590, "Grisedale Tarn 旁，今天最高點，適合午餐", 1], ["Ruthwaite Lodge", 9.5, 330, "避難小屋遺跡"], ["Patterdale", 13.5, 150]]},
+  s5: {t: "Patterdale → Shap", r: "越過 Angle Tarn 到 Kidsty Pike（約 780 m，全程最高點），再沿 Haweswater 下到 Shap Abbey 和 Shap。湖區最後一天，天氣好是最漂亮的一天。", sleep: "Shap", alt: 270, lv: 2, tag: "全程最高點", loc: "sha", mv: "walk", st: [25, 800, 770], est: 1,
+    wp: [["Patterdale", 0, 150], ["Boredale Hause", 3, 400, "山口，往 Angle Tarn 方向"], ["Angle Tarn", 5, 480, "冰斗湖，可午休", 1], ["Kidsty Pike", 9, 780, "C2C 最高點", 1], ["Haweswater 湖尾", 13, 240, "沿水庫北岸"], ["Burnbanks", 18, 230], ["Shap Abbey", 22, 220, "13 世紀修道院廢墟", 1], ["Shap", 25, 270]]},
+  s6: {t: "Shap → Kirkby Stephen", r: "進入 Eden 谷地，地形平緩但很長，沿途經過史前石圈、Orton 和 Smardale Gill 高架橋。全程最長的一天，早出發。", sleep: "Kirkby Stephen", alt: 130, lv: 2, tag: "全程最長", loc: "kir", mv: "walk", st: [32, 450, 600], est: 1,
+    wp: [["Shap", 0, 270], ["Oddendale 石圈", 5, 290, "史前石圈，路邊可拍照", 1], ["Orton", 14, 180, "有咖啡館與店，補給與午餐點（營業時間未查證）"], ["Sunbiggin Tarn", 18, 260, "荒原上的小湖"], ["Smardale Gill 高架橋", 25, 190, "舊鐵路高架橋，風景好", 1], ["Kirkby Stephen", 32, 130]]},
+  s7: {t: "Kirkby Stephen → Keld", r: "經 Nine Standards Rigg 的九座石塔，上段多沼澤，依現場告示選當季路線。下到 Swaledale 上游的小村 Keld。", sleep: "Keld", alt: 330, lv: 2, tag: "荒原沼澤", loc: "kel", mv: "walk", st: [20, 560, 350], est: 1,
+    wp: [["Kirkby Stephen", 0, 130], ["Hartley", 3, 180, "最後一個村子"], ["Nine Standards Rigg", 9, 660, "九座石塔，視野開闊，路線依告示", 1], ["Ravenseat", 14, 330, "荒原上的農場"], ["Keld", 20, 330]]},
+  s8: {t: "Keld → Reeth", r: "高路線走 Gunnerside Gill 舊礦區，低路線沿 Swale 河與草場，兩條都到 Reeth。起霧改走低路線。", sleep: "Reeth", alt: 200, lv: 1, loc: "ree", mv: "walk", st: [18, 300, 430], est: 1,
+    wp: [["Keld", 0, 330], ["Swinner Gill", 3, 390, "鉛礦遺跡"], ["Old Gang 煉鉛廠", 6, 380, "荒廢的煉鉛廠，高路線的亮點", 1], ["Surrender Bridge", 7.5, 350], ["Healaugh", 14, 220, "下到谷地"], ["Reeth", 18, 200]]},
+  s9: {t: "Reeth → Richmond", r: "沿 Swale 河經 Marrick Priory，下午進到 Richmond，鎮上有城堡和市集廣場。", sleep: "Richmond", alt: 100, lv: 1, loc: "ric", mv: "walk", st: [18, 250, 380], est: 1,
+    wp: [["Reeth", 0, 200], ["Marrick Priory", 6, 170, "12 世紀修道院遺跡", 1], ["Marske", 10, 190, "小村，路過"], ["Applegarth", 14, 150], ["Richmond", 18, 100, "城堡與市集廣場", 1]]},
+  rest2: {t: "休息日：Richmond", r: "補給、洗衣，逛 Richmond Castle。前面翻山很累，後面是平原段，休息一下。", sleep: "Richmond", alt: 100, lv: 0, rest: 1, loc: "ric"},
+  s10: {t: "Richmond → Danby Wiske", r: "進入平原，一整天都是田野，景色變化少，算是心理考驗。住宿很少，務必先訂。", sleep: "Danby Wiske", alt: 40, lv: 1, loc: "dan", mv: "walk", st: [22, 150, 200], est: 1,
+    wp: [["Richmond", 0, 100], ["Catterick Bridge", 7, 80, "15 世紀古橋，午餐點", 1], ["Bolton on Swale", 11, 50, "教堂與小村"], ["Streetlam", 17, 55], ["Danby Wiske", 22, 40]]},
+  s11: {t: "Danby Wiske → Osmotherley", r: "越過 A19，再爬到 North York Moors 山腳，傍晚抵達 Osmotherley。", sleep: "Osmotherley", alt: 180, lv: 1, loc: "osm", mv: "walk", st: [25, 250, 100], est: 1, lunch: "便當，這段沒有店，水也要帶夠",
+    wp: [["Danby Wiske", 0, 40], ["A19 天橋", 10, 40, "要過的大馬路"], ["Ingleby Cross", 22, 60, "離終點約 2.5 km，之後穿過森林上到 Osmotherley", 1], ["Osmotherley", 25, 180]]},
+  s12: {t: "Osmotherley → Clay Bank", r: "踏上 Cleveland Hills 稜線，一路上下好幾座小丘，風大無遮蔽。Clay Bank 沒有住宿，先訂 Great Broughton 或 Chop Gate 的民宿接送。", sleep: "Great Broughton / Chop Gate", alt: 150, lv: 2, tag: "稜線連續上下", loc: "gbr", mv: "walk", via: "cla", st: [19, 700, 500], est: 1,
+    wp: [["Osmotherley", 0, 180], ["Scarth Wood Moor", 3, 260], ["Live Moor", 5, 300], ["Carlton Bank", 10, 400, "Lord Stones 咖啡館，補給與午餐（營業時間未查證）", 1], ["Cringle Moor", 13, 430, "稜線視野", 1], ["Hasty Bank", 16, 400, "Wain Stones 岩塊"], ["Clay Bank Top", 19, 270, "與接送的民宿碰面"]]},
+  s13: {t: "Clay Bank → Blakey Ridge", r: "穿越荒原最高段，風景開闊。Lion Inn 是荒原上的老酒館，旺季常滿，先訂。", sleep: "Lion Inn（Blakey Ridge）", alt: 430, lv: 2, tag: "荒原無遮蔽", loc: "bla", mv: "walk", st: [17, 400, 300], est: 1,
+    wp: [["Clay Bank Top", 0, 270], ["Round Hill", 4, 454, "Cleveland Way 最高點", 1], ["Bloworth Crossing", 7, 400, "舊鐵路路基，沿它走很平"], ["Rosedale Head", 11, 420, "荒原最開闊的一段", 1], ["Lion Inn", 17, 430, "老酒館，晚餐與住宿"]]},
+  s14: {t: "Blakey Ridge → Grosmont", r: "沿荒原邊緣下行，經 Glaisdale 的古橋，到 Grosmont 蒸汽火車站。", sleep: "Grosmont", alt: 15, lv: 1, loc: "gro", mv: "walk", st: [19, 150, 500], est: 1,
+    wp: [["Lion Inn", 0, 430], ["Danby High Moor", 8, 330, "荒原下行"], ["Glaisdale Rigg", 12, 200, "稜線俯瞰 Esk 谷"], ["Beggar's Bridge", 15, 60, "17 世紀古石橋", 1], ["Egton Bridge", 17, 40, "村子，午餐點（營業時間未查證）"], ["Grosmont", 19, 15, "蒸汽火車站", 1]]},
+  s15: {t: "Grosmont → Robin Hood's Bay", r: "最後一天，先走 Littlebeck 森林，再沿海岸到 Robin Hood's Bay。到海邊把石子丟進北海，完成儀式。", sleep: "Robin Hood's Bay 旅館", alt: 10, town: 1, lv: 2, loc: "rhb", mv: "walk", st: [24, 500, 520], est: 1,
+    wp: [["Grosmont", 0, 15], ["Littlebeck", 6, 100, "森林小徑，Falling Foss 瀑布就在附近", 1], ["Sneaton Moor", 12, 230, "荒原最後一段"], ["Hawsker", 19, 70, "海岸小路開始"], ["Robin Hood's Bay", 24, 10, "把石子丟進北海", 1]]},
+  ret: {t: "Robin Hood's Bay → Whitby → York → 曼徹斯特機場", r: "整天轉車回機場，行李多、班次少，這天不排任何行程。", time: "交通約 6~7 小時", sleep: "Manchester 機場旅館", alt: 70, town: 1, lv: 0, loc: "man", mv: "bus", via: "yor"}
 };
 
-let cur = 17;
+// 沒有 wp 的天（交通日與休息日）手寫時間表。時間是預估的行程安排，不是班次
+const MANUAL_STEPS = {
+  arr: {s: [["落地後", "抵達 Manchester Airport，入境與行李預留 75~90 分"], ["+1:30", "Manchester Airport → Manchester Piccadilly → Carlisle（火車約 2.5~3 小時，未查證）"], ["下午", "Carlisle → St Bees 直達（Northern 海岸線，約 1 小時 20 分，約每小時一班，週日班次少；來源是第三方網站，要查當天時刻）", 1], ["傍晚", "入住，走到海邊浸腳、撿一顆石子（日落時間見左側）", 1], ["晚上", "晚餐、早睡，明天是 23 km 長天"]],
+    w: "<b>班機到達時間決定能不能接上班次。</b>太晚就在 Carlisle 或 Manchester 過夜，隔天再走。這天班次我沒查證，行前要排好整條。"},
+  rest1: {s: [["08:30", "早餐，慢慢起床"], ["10:00", "華茲華斯故居 Dove Cottage 與 St Oswald's 教堂墓園，或輕裝來回 Helm Crag（約 3~4 小時，選項）"], ["12:30", "午餐；Grasmere 的薑餅店很有名"], ["下午", "洗衣、補給、處理腳上水泡"], ["19:00", "晚餐"]]},
+  rest2: {s: [["08:30", "早餐"], ["10:00", "Richmond Castle（約 1~1.5 小時，開放時間要查）", 1], ["12:00", "市集廣場午餐"], ["14:00", "沿河走到 Easby Abbey（單程約 2.5 km，選項）"], ["下午", "洗衣、補給（隔天是平原長段）"], ["19:00", "晚餐"]]},
+  ret: {s: [["07:30", "早餐，退房"], ["09:00", "Robin Hood's Bay → Whitby：X93 巴士（Arriva，有資料說約每小時一班、季節性，要查當年時刻）", 1], ["11:00", "Whitby 午餐，看 199 階與修道院（時間夠才去）"], ["下午", "Whitby → York：840 Coastliner 巴士（2022 年資料約兩小時一班，要查現況；Whitby 巴士站就在火車站旁）", 1], ["傍晚", "York → Manchester 火車（約 1.5~2 小時，未查證）"], ["晚上", "Manchester Airport 住宿，隔天搭機"]],
+    w: "<b>回程班次少，接不上就多住一晚。</b>班機安排在終點隔天下午以後比較保險。"}
+};
+// 每天另外的補充（路線選擇、風險）
+const NOTES = {
+  s2: {w: "<b>高、低路線二選一，不要在路上臨時決定。</b>高路線（Red Pike、High Stile、Haystacks）約多上升 300 m、多 1~2 小時；霧、強風、雨時改走低路線。", a: "Loft Beck 是陡坡礫石，濕時要放慢，手杖幫助很大。"},
+  s3: {n: ["Greenup Edge 沒有明顯路標，起霧時沿溪線與稜線的石堆走，備好離線地圖。"]},
+  s5: {w: "<b>Kidsty Pike 前後暴露在風中，霧或雷雨就不要上。</b>備案：沿 Ullswater 與 Haweswater 低路線到 Shap。"},
+  s6: {n: ["這天不能縮短，中途沒有住宿也沒有補給站，水與午餐出發前備足；Orton 的店家時間要先查。"]},
+  s7: {w: "<b>Nine Standards Rigg 沼澤多，雨後非常泥濘。</b>依現場告示牌選當季開放的路線，不要自己找乾的地方亂走。"},
+  s10: {n: ["平原段，路徑是農田與草地，有牛群的牧場要小心通過，關好柵門。"]},
+  s12: {w: "<b>Clay Bank 沒有住宿與公共交通。</b>先和 Great Broughton 或 Chop Gate 的民宿約好幾點在 Clay Bank Top 接，隔天早上也要約送回來。"},
+  s13: {w: "<b>荒原最高段沒有遮蔽。</b>風雨大時 Lion Inn 是唯一的避難點，行前確認有房。"},
+  s15: {n: ["潮汐：海灘上的岩石平台在漲潮時可能被淹，海邊走法要看當天潮汐，別走到被潮水困住。", "終點的儀式：把 St Bees 撿的石子丟進北海，再去酒館喝一杯。"]}
+};
+const ZH_SIGHT = "";
+
+// 預約提示與備註（舉例，不是推薦名單）。q 是搜尋用字串
+const STAY = {
+  "St Bees 旅館": {pri: 1, q: "St Bees B&B", note: "起點，抵達日住一晚。"},
+  "Ennerdale Bridge": {pri: 2, q: "Ennerdale Bridge B&B Coast to Coast", note: "村子小，住宿少，旺季先訂。"},
+  "Rosthwaite": {pri: 3, q: "Rosthwaite Borrowdale B&B Coast to Coast", note: "Borrowdale 熱門，旺季最早滿。"},
+  "Grasmere": {pri: 2, q: "Grasmere B&B", note: "觀光地，選擇多但旺季貴。"},
+  "Patterdale": {pri: 3, q: "Patterdale B&B Coast to Coast", note: "村子小，住宿少。"},
+  "Shap": {pri: 2, q: "Shap B&B Coast to Coast", note: "選擇不多，要先訂。"},
+  "Kirkby Stephen": {pri: 1, q: "Kirkby Stephen B&B", note: "鎮，選擇較多。"},
+  "Keld": {pri: 3, q: "Keld Lodge", note: "只有少數住宿，全程最難訂之一。"},
+  "Reeth": {pri: 2, q: "Reeth B&B", note: "Swaledale 主要村，選擇中等。"},
+  "Richmond": {pri: 1, q: "Richmond North Yorkshire B&B", note: "鎮，選擇多；休息日也住這裡。"},
+  "Danby Wiske": {pri: 3, q: "Danby Wiske B&B Coast to Coast", note: "小村，住宿極少，訂不到可請民宿接送。"},
+  "Osmotherley": {pri: 2, q: "Osmotherley B&B", note: "選擇中等。"},
+  "Great Broughton / Chop Gate": {pri: 3, q: "Great Broughton B&B Coast to Coast pick up Clay Bank", note: "要確認有提供 Clay Bank 接送。"},
+  "Lion Inn（Blakey Ridge）": {pri: 3, q: "Lion Inn Blakey Ridge booking", note: "荒原上的老酒館，旺季常滿。"},
+  "Grosmont": {pri: 2, q: "Grosmont B&B Coast to Coast", note: "小村，住宿少。"},
+  "Robin Hood's Bay 旅館": {pri: 2, q: "Robin Hood's Bay B&B", note: "終點村，旺季貴，先訂。"},
+  "Manchester 機場旅館": {pri: 1, q: "Manchester Airport hotel", note: "回程班機前一晚，離機場要近。"}
+};
+const PRI = {3: "最先訂", 2: "早訂", 1: "一般"};
+const WHEN = {3: "出發前 8~10 個月", 2: "出發前 6~8 個月", 1: "出發前 3~6 個月"};
+
+const PLANS = {
+  15: {name: "15 天", tag: "標準分段", end: [6, 30],
+    pros: ["每天走一段，走完整條 C2C：湖區、約克郡谷地、North York Moors", "總天數少，請假 19 天含來回", "路線長度平均，沒有太極端的單日"],
+    cons: ["沒有休息日，腳上有水泡或壞天氣時沒緩衝", "Shap 到 Kirkby Stephen 的 32 km 沒辦法拆", "每天的步行時間 5~9 小時，要有基本體能"],
+    ids: ["fly", "arr", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "s12", "s13", "s14", "s15", "ret", "fly"]},
+  17: {name: "17 天", tag: "標準 + 2 休息日", pick: "建議", end: [6, 30],
+    pros: ["在 Grasmere 與 Richmond 各多住一晚，湖區翻山後與平原段前都有休息", "壞天氣可以順延，不用硬走", "兩個休息日都是有景點的鎮，不無聊"],
+    cons: ["請假 21 天含來回", "住宿多兩晚，也多兩天的預算"],
+    ids: ["fly", "arr", "s1", "s2", "s3", "rest1", "s4", "s5", "s6", "s7", "s8", "s9", "rest2", "s10", "s11", "s12", "s13", "s14", "s15", "ret", "fly"]}
+};
+
+// 每天的移動方式與中途點（實際地圖用）。第一組是中途點，第二組是各段的 walk（步行）或 bus（搭車）
+const RR = {
+  arr: [["car"], ["bus", "bus"]],
+  s1: [["sbh", "sw"], ["walk", "walk", "walk"]], s2: [["ens", "lof", "hon"], ["walk", "walk", "walk", "walk"]], s3: [["stw", "gue"], ["walk", "walk", "walk"]],
+  s4: [["gth"], ["walk", "walk"]], s5: [["bod", "ang", "kid", "haw"], ["walk", "walk", "walk", "walk", "walk"]], s6: [["od", "ort", "sbk", "sl"], ["walk", "walk", "walk", "walk", "walk"]],
+  s7: [["hrt", "nin", "rav"], ["walk", "walk", "walk", "walk"]], s8: [["sw2"], ["walk", "walk"]], s9: [["mar", "mrk"], ["walk", "walk", "walk"]], s10: [["cat"], ["walk", "walk"]],
+  s11: [["ing"], ["walk", "walk"]], s12: [["lm", "cb", "cm", "hb", "cla"], ["walk", "walk", "walk", "walk", "walk", "bus"]], s13: [["cla", "ur"], ["bus", "walk", "walk"]],
+  s14: [["gla", "egt"], ["walk", "walk", "walk"]], s15: [["lit"], ["walk", "walk"]], ret: [["whi", "yor"], ["bus", "bus", "bus"]]
+};
+
+const PH = {"arr":[{"l":"Carlisle Castle 卡萊爾城堡","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1c/Parade_ground%2C_Carlisle_Castle_-_geograph.org.uk_-_2518497.jpg/960px-Parade_ground%2C_Carlisle_Castle_-_geograph.org.uk_-_2518497.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Parade_ground,_Carlisle_Castle_-_geograph.org.uk_-_2518497.jpg","a":"Euan Nelson","c":"CC BY-SA 2.0"},{"l":"St Bees Head 海崖","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/St_Bees_Head_Cliffs_viewed_from_the_Irish_Sea_-_geograph.org.uk_-_6133808.jpg/960px-St_Bees_Head_Cliffs_viewed_from_the_Irish_Sea_-_geograph.org.uk_-_6133808.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:St_Bees_Head_Cliffs_viewed_from_the_Irish_Sea_-_geograph.org.uk_-_6133808.jpg","a":"Martin","c":"CC BY-SA 2.0"},{"l":"St Bees Priory 修道院教堂","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/9/93/St_Bees_Priory_west_autumn_sun.jpg/960px-St_Bees_Priory_west_autumn_sun.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:St_Bees_Priory_west_autumn_sun.jpg","a":"Dougsim","c":"CC BY-SA 3.0"}],"s1":[{"l":"St Bees Head 燈塔","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ef/St_Bees_Head_Lighthouse_-_geograph.org.uk_-_5753942.jpg/960px-St_Bees_Head_Lighthouse_-_geograph.org.uk_-_5753942.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:St_Bees_Head_Lighthouse_-_geograph.org.uk_-_5753942.jpg","a":"John Allan","c":"CC BY-SA 2.0"},{"l":"Dent Fell 山頂","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/6/65/Artengill_track_beside_Dent_Fell_-_geograph.org.uk_-_3058201.jpg/960px-Artengill_track_beside_Dent_Fell_-_geograph.org.uk_-_3058201.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Artengill_track_beside_Dent_Fell_-_geograph.org.uk_-_3058201.jpg","a":"Roger Templeman","c":"CC BY-SA 2.0"},{"l":"Nannycatch 山谷","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/Uldale_at_Nannycatch_Gate_-_geograph.org.uk_-_6730793.jpg/960px-Uldale_at_Nannycatch_Gate_-_geograph.org.uk_-_6730793.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Uldale_at_Nannycatch_Gate_-_geograph.org.uk_-_6730793.jpg","a":"Philip Halling","c":"CC BY-SA 2.0"}],"s2":[{"l":"Ennerdale Water 恩納代爾湖","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/8/89/Ennerdalewater1.jpg/960px-Ennerdalewater1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Ennerdalewater1.jpg","a":"Kreuzschnabel","c":"CC BY-SA 3.0"},{"l":"Innominate Tarn 與 Haystacks","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/Haystacks_and_Innominate_Tarn.jpg/960px-Haystacks_and_Innominate_Tarn.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Haystacks_and_Innominate_Tarn.jpg","a":"Tango22","c":"CC BY-SA 3.0"},{"l":"Great Gable 大蓋博峰","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b9/Great_Gable_and_Green_Gable_from_Sty_Head_2022_01.jpg/960px-Great_Gable_and_Green_Gable_from_Sty_Head_2022_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Great_Gable_and_Green_Gable_from_Sty_Head_2022_01.jpg","a":"Julian Herzog (Website)","c":"CC BY 4.0"}],"s3":[{"l":"Bowder Stone 巨石","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b5/Bowder_Stone_-_geograph.org.uk_-_5904791.jpg/960px-Bowder_Stone_-_geograph.org.uk_-_5904791.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Bowder_Stone_-_geograph.org.uk_-_5904791.jpg","a":"Anthony Foster","c":"CC BY-SA 2.0"},{"l":"Easedale Tarn 湖泊","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/d/de/Easedale_Tarn_-_geograph.org.uk_-_3456990.jpg/960px-Easedale_Tarn_-_geograph.org.uk_-_3456990.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Easedale_Tarn_-_geograph.org.uk_-_3456990.jpg","a":"Anthony Parkes","c":"CC BY-SA 2.0"},{"l":"Grasmere 湖","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/8/83/Grasmere_Lake_-_geograph.org.uk_-_5116289.jpg/960px-Grasmere_Lake_-_geograph.org.uk_-_5116289.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Grasmere_Lake_-_geograph.org.uk_-_5116289.jpg","a":"Graham Robson","c":"CC BY-SA 2.0"}],"rest1":[{"l":"Dove Cottage 華茲華斯故居","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/7/76/Grasmere_Dove_Cottage_120508w.jpg/960px-Grasmere_Dove_Cottage_120508w.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Grasmere_Dove_Cottage_120508w.jpg","a":"Strobilomyces","c":"CC BY-SA 3.0"},{"l":"Helm Crag 獅與羊","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/4/48/Helm_Crag%2C_Grasmere_-_geograph.org.uk_-_4142734.jpg/960px-Helm_Crag%2C_Grasmere_-_geograph.org.uk_-_4142734.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Helm_Crag,_Grasmere_-_geograph.org.uk_-_4142734.jpg","a":"Peter S","c":"CC BY-SA 2.0"},{"l":"St Oswald's Church 教堂","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/St_Oswalds%27_Church%2C_Grasmere.jpg/960px-St_Oswalds%27_Church%2C_Grasmere.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:St_Oswalds%27_Church,_Grasmere.jpg","a":"Brian Clift","c":"CC BY-SA 2.0"}],"s4":[{"l":"Dollywaggon Pike 與 Grisedale","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Dollywaggon_Pike_from_Deepdale_Hause.jpg/960px-Dollywaggon_Pike_from_Deepdale_Hause.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Dollywaggon_Pike_from_Deepdale_Hause.jpg","a":"Silence-is-infinite","c":"CC BY-SA 3.0"},{"l":"Striding Edge 稜線","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/8/81/Striding_Edge%2C_Helvellyn%2C_Lake_District_%2814193959955%29.jpg/960px-Striding_Edge%2C_Helvellyn%2C_Lake_District_%2814193959955%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Striding_Edge,_Helvellyn,_Lake_District_(14193959955).jpg","a":"Andrew Bone from Weymouth, England","c":"CC BY 2.0"},{"l":"Ullswater 烏爾斯湖","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/b/ba/2013_Patterdale_Ullswater_Boredale_Hause.jpg/960px-2013_Patterdale_Ullswater_Boredale_Hause.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:2013_Patterdale_Ullswater_Boredale_Hause.jpg","a":"Kreuzschnabel","c":"CC BY-SA 3.0"}],"s5":[{"l":"Kidsty Pike 全程最高點","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8a/2012_Kidsty_Pike.jpg/960px-2012_Kidsty_Pike.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:2012_Kidsty_Pike.jpg","a":"Kreuzschnabel","c":"CC BY-SA 3.0"},{"l":"Haweswater 水庫","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Haweswater_Reservoir_-_geograph.org.uk_-_4067384.jpg/960px-Haweswater_Reservoir_-_geograph.org.uk_-_4067384.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Haweswater_Reservoir_-_geograph.org.uk_-_4067384.jpg","a":"Russel Wills","c":"CC BY-SA 2.0"},{"l":"Shap Abbey 修道院廢墟","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/8/86/Shap_abbey.jpg/960px-Shap_abbey.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Shap_abbey.jpg","a":"James F. Carter","c":"CC BY-SA 2.5"}],"s6":[{"l":"Oddendale 史前石圈","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/Stone_Circle_near_Oddendale_-_geograph.org.uk_-_6875384.jpg/960px-Stone_Circle_near_Oddendale_-_geograph.org.uk_-_6875384.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Stone_Circle_near_Oddendale_-_geograph.org.uk_-_6875384.jpg","a":"Colin Kinnear","c":"CC BY-SA 2.0"},{"l":"Orton Scar 石灰岩地表","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/3/36/Orton_Scar_Limestone_Pavement.jpg/960px-Orton_Scar_Limestone_Pavement.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Orton_Scar_Limestone_Pavement.jpg","a":"Northernhenge","c":"CC0"},{"l":"Smardale Gill 高架橋","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Smardale_Gill_Viaduct_-_geograph.org.uk_-_7270508.jpg/960px-Smardale_Gill_Viaduct_-_geograph.org.uk_-_7270508.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Smardale_Gill_Viaduct_-_geograph.org.uk_-_7270508.jpg","a":"Clive Nicholson","c":"CC BY-SA 2.0"}],"s7":[{"l":"Nine Standards Rigg 九座石塔","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a9/Nine_Standards_1996.jpg/960px-Nine_Standards_1996.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Nine_Standards_1996.jpg","a":"Kreuzschnabel","c":"CC BY-SA 3.0"},{"l":"Kisdon Force 瀑布","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cb/Upper_Kisden_Force.jpg/960px-Upper_Kisden_Force.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Upper_Kisden_Force.jpg","a":"Focaldepth http://www.focaldepth.co.uk","c":"公有領域"},{"l":"Catrake Force 瀑布","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c4/Catrake_Force_-_geograph.org.uk_-_5923293.jpg/960px-Catrake_Force_-_geograph.org.uk_-_5923293.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Catrake_Force_-_geograph.org.uk_-_5923293.jpg","a":"John Allan","c":"CC BY-SA 2.0"}],"s8":[{"l":"Gunnerside Gill 峽谷","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/3/39/Gunnerside_Gill_-_geograph.org.uk_-_2682067.jpg/960px-Gunnerside_Gill_-_geograph.org.uk_-_2682067.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Gunnerside_Gill_-_geograph.org.uk_-_2682067.jpg","a":"Dennis Shevelan","c":"CC BY-SA 2.0"},{"l":"Old Gang 煉鉛廠遺跡","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a8/Old_Gang_Smelt_Mill_002.jpg/960px-Old_Gang_Smelt_Mill_002.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Old_Gang_Smelt_Mill_002.jpg","a":"Kreuzschnabel","c":"CC BY-SA 3.0"},{"l":"Swaledale 谷地","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/2015_Swaledale_from_Kisdon_Hill.jpg/960px-2015_Swaledale_from_Kisdon_Hill.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:2015_Swaledale_from_Kisdon_Hill.jpg","a":"Kreuzschnabel","c":"CC BY-SA 3.0"}],"s9":[{"l":"Marrick Priory 修道院","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9f/Marrick_Priory.jpg/960px-Marrick_Priory.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Marrick_Priory.jpg","a":"Chris06","c":"CC BY-SA 4.0"},{"l":"Richmond Castle 城堡","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Richmond_Castle_%288015%29.jpg/960px-Richmond_Castle_%288015%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Richmond_Castle_(8015).jpg","a":"Nilfanion","c":"CC BY-SA 4.0"},{"l":"Culloden Tower 塔樓","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/Culloden_Tower_from_Richmond_01.jpg/960px-Culloden_Tower_from_Richmond_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Culloden_Tower_from_Richmond_01.jpg","a":"Kognos","c":"CC BY-SA 4.0"}],"rest2":[{"l":"Richmond 市集廣場","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1d/2014_Richmond_Market_Place.jpg/960px-2014_Richmond_Market_Place.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:2014_Richmond_Market_Place.jpg","a":"Kreuzschnabel","c":"CC BY-SA 3.0"},{"l":"Richmond Falls 瀑布","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/Richmond_falls_panorama.JPG/960px-Richmond_falls_panorama.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Richmond_falls_panorama.JPG","a":"AWS","c":"公有領域"},{"l":"Easby Abbey 修道院廢墟","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/0/02/Easby_abbey.JPG/960px-Easby_abbey.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Easby_abbey.JPG","a":"Greenjettaguy","c":"公有領域"}],"s10":[{"l":"Catterick Bridge 古橋","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c9/Western_parapet_of_Catterick_Bridge_over_the_River_Swale_-_geograph.org.uk_-_5318771.jpg/960px-Western_parapet_of_Catterick_Bridge_over_the_River_Swale_-_geograph.org.uk_-_5318771.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Western_parapet_of_Catterick_Bridge_over_the_River_Swale_-_geograph.org.uk_-_5318771.jpg","a":"Roger Templeman","c":"CC BY-SA 2.0"},{"l":"Easby Abbey 廢墟","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/8/84/Easby_Hall_seen_from_Easby_Abbey_-_geograph.org.uk_-_6219372.jpg/960px-Easby_Hall_seen_from_Easby_Abbey_-_geograph.org.uk_-_6219372.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Easby_Hall_seen_from_Easby_Abbey_-_geograph.org.uk_-_6219372.jpg","a":"habiloid","c":"CC BY-SA 2.0"},{"l":"Danby Wiske 教堂","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/7/76/Danby_Wiske_Parish_Church_-_geograph.org.uk_-_5449548.jpg/960px-Danby_Wiske_Parish_Church_-_geograph.org.uk_-_5449548.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Danby_Wiske_Parish_Church_-_geograph.org.uk_-_5449548.jpg","a":"Roger Templeman","c":"CC BY-SA 2.0"}],"s11":[{"l":"Mount Grace Priory 修道院","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7e/Mount_Grace_Priory_2015.jpg/960px-Mount_Grace_Priory_2015.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Mount_Grace_Priory_2015.jpg","a":"Frglrx","c":"CC BY-SA 4.0"},{"l":"Lady Chapel 小教堂","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/Lady_Chapel_and_House%2C_Osmotherley.jpg/960px-Lady_Chapel_and_House%2C_Osmotherley.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Lady_Chapel_and_House,_Osmotherley.jpg","a":"David Robinson","c":"CC BY-SA 2.0"},{"l":"Osmotherley 村莊","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a9/Osmotherley-village-centre.jpg/960px-Osmotherley-village-centre.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Osmotherley-village-centre.jpg","a":"Kreuzschnabel","c":"CC BY-SA 3.0"}],"s12":[{"l":"Cringle Moor 稜線","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1b/Cleveland_Way_onto_Cringle_Moor.jpg/960px-Cleveland_Way_onto_Cringle_Moor.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Cleveland_Way_onto_Cringle_Moor.jpg","a":"MarcusBritish","c":"CC BY-SA 3.0"},{"l":"Cleveland Hills 丘陵","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/2/28/The_Cleveland_Hills_from_Carlton_Bank.jpg/960px-The_Cleveland_Hills_from_Carlton_Bank.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:The_Cleveland_Hills_from_Carlton_Bank.jpg","a":"User:MarcusBritish","c":"CC BY-SA 3.0"},{"l":"Roseberry Topping 山峰","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Roseberry_Topping_-_geograph.org.uk_-_2128485.jpg/960px-Roseberry_Topping_-_geograph.org.uk_-_2128485.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Roseberry_Topping_-_geograph.org.uk_-_2128485.jpg","a":"Carol Walker","c":"CC BY-SA 2.0"}],"s13":[{"l":"Lion Inn 荒原老酒館","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/Lion_Inn_Blakey_Ridge.jpg/960px-Lion_Inn_Blakey_Ridge.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Lion_Inn_Blakey_Ridge.jpg","a":"Kreuzschnabel","c":"CC BY-SA 3.0"},{"l":"Fat Betty 白十字","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/White_Cross_%28Fat_Betty%29_on_Rosedale_Head_%282%29_-_geograph.org.uk_-_4566258.jpg/960px-White_Cross_%28Fat_Betty%29_on_Rosedale_Head_%282%29_-_geograph.org.uk_-_4566258.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:White_Cross_(Fat_Betty)_on_Rosedale_Head_(2)_-_geograph.org.uk_-_4566258.jpg","a":"David Smith","c":"CC BY-SA 2.0"},{"l":"Rosedale Chimney 荒原","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/1/15/Rosedale_Chimney_Bank_-_geograph.org.uk_-_4566129.jpg/960px-Rosedale_Chimney_Bank_-_geograph.org.uk_-_4566129.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Rosedale_Chimney_Bank_-_geograph.org.uk_-_4566129.jpg","a":"David Smith","c":"CC BY-SA 2.0"}],"s14":[{"l":"Beggar's Bridge 古橋","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ea/Beggar%27s_Bridge%2C_Glaisdale_-_geograph.org.uk_-_4175428.jpg/960px-Beggar%27s_Bridge%2C_Glaisdale_-_geograph.org.uk_-_4175428.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Beggar%27s_Bridge,_Glaisdale_-_geograph.org.uk_-_4175428.jpg","a":"Jonathan Hutchins","c":"CC BY-SA 2.0"},{"l":"Grosmont 蒸汽火車","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3e/Grosmont_MMB_01_North_Yorkshire_Moors_Railway_45407.jpg/960px-Grosmont_MMB_01_North_Yorkshire_Moors_Railway_45407.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Grosmont_MMB_01_North_Yorkshire_Moors_Railway_45407.jpg","a":"mattbuck (category)","c":"CC BY-SA 3.0"},{"l":"Egton Bridge 古橋","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/6/65/Egton_bridge.jpg/960px-Egton_bridge.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Egton_bridge.jpg","a":"James F. Carter","c":"CC BY-SA 2.5"}],"s15":[{"l":"Falling Foss 瀑布","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Falling_Foss_-_geograph.org.uk_-_5914949.jpg/960px-Falling_Foss_-_geograph.org.uk_-_5914949.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Falling_Foss_-_geograph.org.uk_-_5914949.jpg","a":"John Allan","c":"CC BY-SA 2.0"},{"l":"Robin Hood's Bay 海灣全景","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Robin_Hoods_Bay_from_the_Cleveland_Way.jpg/960px-Robin_Hoods_Bay_from_the_Cleveland_Way.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Robin_Hoods_Bay_from_the_Cleveland_Way.jpg","a":"James F. Carter","c":"CC BY-SA 2.5"},{"l":"Robin Hood's Bay 海邊村落","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9e/Around_Robin_Hood%27s_Bay%2C_Yorkshire_%28250082%29_%289452603587%29.jpg/960px-Around_Robin_Hood%27s_Bay%2C_Yorkshire_%28250082%29_%289452603587%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Around_Robin_Hood%27s_Bay,_Yorkshire_(250082)_(9452603587).jpg","a":"Robert Linsdell from St. Andrews, Canada","c":"CC BY 2.0"}],"ret":[{"l":"Whitby Abbey 修道院廢墟","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0e/Whitby_Abbey_ruins%2C_Yorkshire.jpg/960px-Whitby_Abbey_ruins%2C_Yorkshire.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Whitby_Abbey_ruins,_Yorkshire.jpg","a":"Juliet220","c":"CC BY-SA 3.0"},{"l":"199 Steps 階梯","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f0/Whitby_MMB_27_199_Steps.jpg/960px-Whitby_MMB_27_199_Steps.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:Whitby_MMB_27_199_Steps.jpg","a":"mattbuck (category)","c":"CC BY-SA 3.0"},{"l":"York Minster 約克大教堂","u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/York_Minster_%2829th_August_2020%29_002.jpg/960px-York_Minster_%2829th_August_2020%29_002.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail","p":"https://commons.wikimedia.org/wiki/File:York_Minster_(29th_August_2020)_002.jpg","a":"Mtaylor848","c":"CC BY-SA 4.0"}]};
+
+const GEO = {"s1":{"st":[23.8,710,610],"wp":[["St Bees（愛爾蘭海）",0,11,"把腳浸海水、撿石子",0],["St Bees Head 燈塔",4.5,82,"海崖與海鳥，全程第一個景點",1],["Sandwith",7.4,84,"小村，補水",0],["Cleator",13.6,69,"較大的村，有商店，午餐點",0],["Dent Fell",17.7,330,"今天最高點，回頭看海",1],["Nannycatch",20.9,167,"下切到 Ennerdale 谷地",0],["Ennerdale Bridge",23.8,109,"",0]],"prof":[[0,11],[0.14,17],[0.31,30],[0.49,52],[0.83,71],[0.96,86],[1.16,89],[1.35,86],[1.49,79],[1.77,72],[2.12,57],[2.42,44],[2.62,37],[2.81,38],[2.94,46],[3.03,58],[3.42,67],[3.71,75],[3.92,80],[4.15,79],[4.35,81],[4.46,83],[4.62,81],[4.86,81],[5.04,81],[5.31,82],[5.52,86],[5.64,90],[5.82,89],[5.98,96],[6.25,102],[6.4,104],[6.56,105],[6.97,94],[7.43,84],[7.57,80],[7.8,82],[8.09,82],[8.38,83],[8.71,83],[8.97,82],[9.36,71],[9.57,50],[9.91,31],[10.24,17],[10.44,16],[10.69,22],[10.9,33],[11.16,43],[11.42,55],[11.68,63],[11.91,69],[12.23,72],[12.73,72],[12.98,73],[13.18,72],[13.68,68],[13.96,63],[14,59],[14.19,59],[14.39,60],[14.49,60],[14.65,61],[14.98,64],[15.11,72],[15.33,83],[15.53,101],[15.68,124],[15.92,155],[16.29,183],[16.37,238],[17.06,282],[17.33,322],[17.53,337],[17.77,323],[18.06,298],[18.21,262],[18.47,227],[18.62,189],[18.82,159],[19.18,139],[19.36,127],[19.69,127],[19.88,132],[20.18,138],[20.4,146],[20.6,156],[20.88,167],[21.02,177],[21.24,190],[21.43,201],[21.65,210],[21.82,211],[22,200],[22.42,176],[22.97,150],[23.29,128],[23.5,115],[23.67,110],[23.8,109]],"line":[[54.4907,-3.6067],[54.4916,-3.6081],[54.4913,-3.6105],[54.4909,-3.6126],[54.4915,-3.6177],[54.4924,-3.6191],[54.494,-3.6204],[54.4953,-3.6216],[54.4963,-3.6227],[54.4987,-3.6243],[54.5016,-3.6262],[54.5038,-3.629],[54.5054,-3.6298],[54.5048,-3.6323],[54.5055,-3.6334],[54.5061,-3.6342],[54.5092,-3.6366],[54.5117,-3.6381],[54.5136,-3.6387],[54.5156,-3.6388],[54.5172,-3.6379],[54.5173,-3.6369],[54.5175,-3.635],[54.5187,-3.632],[54.5191,-3.6293],[54.5199,-3.6255],[54.5213,-3.6233],[54.522,-3.6226],[54.5227,-3.62],[54.5231,-3.6179],[54.5233,-3.6139],[54.522,-3.613],[54.5206,-3.6127],[54.5188,-3.6083],[54.5175,-3.6016],[54.5185,-3.6004],[54.5196,-3.5974],[54.5184,-3.5938],[54.5177,-3.5905],[54.516,-3.587],[54.5139,-3.5858],[54.5137,-3.5798],[54.5131,-3.5768],[54.5112,-3.5731],[54.5128,-3.5692],[54.5126,-3.5663],[54.5129,-3.5628],[54.5137,-3.5612],[54.5142,-3.5573],[54.5128,-3.5541],[54.5134,-3.5503],[54.5149,-3.5479],[54.5162,-3.5434],[54.5167,-3.5357],[54.5158,-3.5324],[54.5141,-3.5313],[54.5099,-3.531],[54.5086,-3.528],[54.5082,-3.5278],[54.5072,-3.5257],[54.5069,-3.5226],[54.507,-3.5213],[54.5062,-3.5201],[54.5048,-3.5156],[54.5058,-3.5146],[54.5053,-3.5114],[54.5059,-3.5099],[54.5069,-3.5084],[54.5077,-3.505],[54.5057,-3.5005],[54.5057,-3.4994],[54.504,-3.4896],[54.5031,-3.4856],[54.5026,-3.4827],[54.5016,-3.4794],[54.5003,-3.4757],[54.4993,-3.4771],[54.4983,-3.4784],[54.4973,-3.4792],[54.4971,-3.4764],[54.4981,-3.4711],[54.4983,-3.4686],[54.4994,-3.4642],[54.5007,-3.4627],[54.5027,-3.4598],[54.504,-3.4585],[54.5057,-3.4576],[54.5082,-3.4577],[54.5094,-3.4577],[54.5113,-3.4575],[54.5123,-3.4551],[54.514,-3.454],[54.5153,-3.4535],[54.516,-3.4511],[54.5198,-3.4503],[54.5246,-3.449],[54.5271,-3.4467],[54.5278,-3.4437],[54.5287,-3.4418],[54.5289,-3.4398]]},"s2":{"st":[23.8,540,550],"wp":[["Ennerdale Bridge",0,109,"",0],["Ennerdale Water 湖尾",4.7,128,"沿湖邊碎石步道",0],["Black Sail Hut",13.6,248,"偏遠的 YHA 山屋，可買熱飲，午餐點",1],["Loft Beck 頂",16,441,"陡升約 250 m，今天最累的一段",1],["Honister Hause",19,355,"Honister 板岩礦場與咖啡館",0],["Rosthwaite",23.8,92,"",0]],"prof":[[0,109],[0.23,110],[0.39,116],[0.9,124],[1.28,127],[1.5,127],[2.01,122],[2.37,117],[2.63,115],[2.81,114],[3.13,115],[3.27,117],[3.66,119],[3.95,120],[4.09,124],[4.31,126],[4.54,127],[4.95,126],[5.5,122],[5.8,119],[6.29,118],[6.55,118],[6.75,117],[7.03,119],[7.55,121],[7.62,123],[7.71,124],[8.11,125],[8.43,128],[8.53,134],[8.88,138],[9.36,142],[9.83,144],[10.06,146],[10.24,149],[10.71,152],[10.82,156],[11.07,161],[11.44,167],[11.61,175],[11.83,185],[12.17,191],[12.27,201],[12.44,210],[12.8,220],[12.94,231],[13.28,237],[13.63,248],[13.87,260],[14.64,273],[14.82,283],[14.96,290],[15.15,301],[15.31,315],[15.63,337],[15.86,379],[16.04,441],[16.32,512],[16.74,567],[16.9,593],[17.05,598],[17.3,593],[17.49,558],[18.12,499],[18.74,433],[18.86,377],[19.01,355],[19.33,341],[19.45,326],[19.76,313],[19.91,301],[20.03,288],[20.27,273],[20.63,256],[20.79,238],[20.98,225],[21.13,210],[21.27,192],[21.5,177],[21.57,155],[21.81,139],[21.98,127],[22.04,121],[22.21,120],[22.34,120],[22.58,113],[22.95,105],[23.19,99],[23.28,95],[23.37,95],[23.48,96],[23.73,94],[23.83,92]],"line":[[54.5289,-3.4398],[54.5295,-3.4364],[54.5293,-3.4339],[54.5296,-3.4261],[54.5307,-3.4207],[54.5304,-3.4174],[54.5291,-3.4119],[54.5292,-3.4065],[54.5272,-3.4086],[54.5258,-3.4096],[54.5234,-3.4082],[54.5227,-3.4065],[54.5232,-3.4005],[54.5235,-3.3962],[54.5237,-3.3941],[54.5232,-3.3907],[54.5215,-3.3887],[54.5189,-3.3843],[54.5166,-3.3769],[54.5156,-3.3726],[54.5146,-3.3651],[54.5136,-3.3615],[54.5133,-3.3585],[54.5124,-3.3544],[54.5134,-3.3466],[54.5129,-3.3459],[54.5126,-3.3447],[54.5162,-3.3439],[54.5158,-3.3391],[54.5156,-3.3376],[54.5153,-3.3323],[54.5153,-3.3248],[54.5152,-3.3176],[54.5148,-3.3141],[54.5144,-3.3115],[54.5138,-3.3042],[54.5131,-3.3031],[54.5123,-3.2995],[54.5112,-3.2942],[54.511,-3.2918],[54.5101,-3.2888],[54.5095,-3.2838],[54.5091,-3.2823],[54.509,-3.2797],[54.508,-3.2745],[54.5076,-3.2724],[54.5063,-3.2677],[54.5044,-3.2634],[54.5033,-3.2602],[54.5009,-3.249],[54.5008,-3.2463],[54.5001,-3.2447],[54.4996,-3.2419],[54.499,-3.2397],[54.4976,-3.2354],[54.4971,-3.2321],[54.4983,-3.2302],[54.5005,-3.2283],[54.5013,-3.2219],[54.5013,-3.2195],[54.502,-3.2177],[54.5035,-3.2147],[54.5048,-3.213],[54.5104,-3.2125],[54.5114,-3.2038],[54.5112,-3.2019],[54.5113,-3.1999],[54.5116,-3.1953],[54.5126,-3.1944],[54.5131,-3.19],[54.5125,-3.1877],[54.5128,-3.1861],[54.5142,-3.1834],[54.5152,-3.1781],[54.5158,-3.1759],[54.5167,-3.1734],[54.5165,-3.1713],[54.5164,-3.1693],[54.5159,-3.1659],[54.5155,-3.1654],[54.5145,-3.1688],[54.5135,-3.1672],[54.5137,-3.1665],[54.5147,-3.1647],[54.5145,-3.1626],[54.5151,-3.1591],[54.5164,-3.1539],[54.5181,-3.1519],[54.5189,-3.1513],[54.5192,-3.1504],[54.5202,-3.1498],[54.5222,-3.1498],[54.523,-3.1496],[54.523,-3.1496]]},"s3":{"st":[11.8,550,550],"wp":[["Rosthwaite",0,92,"",0],["Stonethwaite",1.6,99,"經過 Bowder Stone 巨石附近的谷地",0],["Greenup Gill",5.1,486,"沿溪上升",0],["Greenup Edge",5.9,593,"稜線口，起霧容易迷路",1],["Far Easedale",9.4,183,"下切進 Easedale 谷",0],["Grasmere",11.8,95,"",0]],"prof":[[0,92],[0.05,90],[0.18,90],[0.22,90],[0.32,90],[0.5,91],[0.7,92],[0.73,94],[0.83,95],[0.88,95],[0.9,96],[1.02,97],[1.05,97],[1.13,97],[1.34,97],[1.44,97],[1.5,98],[1.61,99],[1.85,100],[2.02,102],[2.11,106],[2.26,110],[2.47,113],[2.62,116],[2.73,121],[2.79,128],[2.88,139],[3.03,152],[3.18,168],[3.48,186],[3.69,207],[3.75,228],[3.86,254],[3.99,277],[4.08,297],[4.29,317],[4.36,334],[4.45,351],[4.49,368],[4.5,378],[4.56,386],[4.63,397],[4.66,410],[4.73,427],[4.91,447],[5.02,466],[5.1,486],[5.17,508],[5.22,528],[5.28,548],[5.33,563],[5.44,574],[5.57,583],[5.63,592],[5.66,599],[5.72,603],[5.82,599],[5.94,593],[6.01,585],[6.17,573],[6.23,558],[6.32,541],[6.38,524],[6.43,510],[6.47,500],[6.58,486],[6.83,472],[7.05,453],[7.27,430],[7.31,403],[7.55,376],[7.74,344],[7.91,317],[8.06,290],[8.38,271],[8.52,255],[8.67,244],[8.72,232],[8.92,222],[8.98,212],[9.12,201],[9.18,191],[9.41,183],[9.49,175],[9.56,167],[9.65,160],[9.71,154],[9.86,147],[9.97,141],[10.13,132],[10.29,125],[10.37,118],[10.63,111],[10.69,106],[10.75,104],[10.81,103],[10.93,101],[11.02,100],[11.05,98],[11.14,97],[11.26,96],[11.43,94],[11.56,93],[11.66,94],[11.77,95]],"line":[[54.523,-3.1496],[54.524,-3.1473],[54.5246,-3.1463],[54.5212,-3.1452],[54.5205,-3.1437],[54.5204,-3.1427],[54.5193,-3.1427],[54.5169,-3.1414],[54.5157,-3.1401],[54.5134,-3.1364],[54.5116,-3.1341],[54.5101,-3.1295],[54.509,-3.1259],[54.5081,-3.1243],[54.5065,-3.1206],[54.5029,-3.1159],[54.5017,-3.1144],[54.5,-3.1128],[54.4976,-3.1114],[54.4966,-3.1107],[54.4959,-3.1108],[54.4951,-3.1105],[54.4931,-3.1088],[54.4917,-3.1077],[54.4911,-3.1081],[54.4901,-3.1077],[54.4883,-3.1057],[54.4878,-3.105],[54.4865,-3.1046],[54.485,-3.1033],[54.4845,-3.1002],[54.4847,-3.0981],[54.4849,-3.0967],[54.4846,-3.0914],[54.4818,-3.0865],[54.4799,-3.0836],[54.4795,-3.0783],[54.4789,-3.0711],[54.4786,-3.0668],[54.4783,-3.063],[54.4778,-3.06],[54.4757,-3.0576],[54.4751,-3.0558],[54.4752,-3.0537],[54.4736,-3.0512],[54.4714,-3.048],[54.4688,-3.0458],[54.4686,-3.0441],[54.4682,-3.0415],[54.4678,-3.0397],[54.4663,-3.0385],[54.4666,-3.0345],[54.4671,-3.0314],[54.4671,-3.0314]]},"s4":{"st":[11.1,520,430],"wp":[["Grasmere",0,95,"",0],["Tongue Gill",2.5,295,"開始爬升",0],["Grisedale Hause",4.3,563,"Grisedale Tarn 旁，今天最高點，適合午餐",1],["Ruthwaite Lodge",7.8,224,"避難小屋遺跡",0],["Patterdale",11.1,183,"",0]],"prof":[[0,95],[0.08,96],[0.18,95],[0.23,95],[0.37,94],[0.49,92],[0.59,91],[0.66,92],[0.76,95],[0.81,103],[0.97,113],[1.11,125],[1.27,138],[1.4,153],[1.44,167],[1.52,182],[1.72,197],[1.79,214],[1.87,236],[2.06,262],[2.48,295],[2.82,331],[3.12,370],[3.3,406],[3.43,440],[3.53,470],[3.58,496],[3.71,519],[3.87,538],[3.94,550],[4.03,558],[4.12,563],[4.2,564],[4.26,563],[4.41,557],[4.45,551],[4.5,547],[4.63,543],[4.69,535],[4.8,523],[4.91,505],[5.17,487],[5.28,466],[5.55,441],[5.78,419],[5.94,395],[6.08,374],[6.13,358],[6.37,343],[6.41,329],[6.49,318],[6.53,306],[6.61,298],[6.65,285],[6.77,272],[6.96,261],[7.31,251],[7.38,240],[7.46,230],[7.53,223],[7.61,224],[7.68,225],[7.79,224],[7.83,223],[8.02,222],[8.27,220],[8.36,219],[8.43,216],[8.54,211],[8.6,209],[8.69,207],[8.85,204],[9.07,202],[9.24,200],[9.44,198],[9.52,197],[9.73,195],[9.84,196],[10.02,198],[10.15,201],[10.2,203],[10.25,206],[10.35,208],[10.5,211],[10.55,213],[10.59,210],[10.65,207],[10.78,199],[10.97,191],[11.06,183]],"line":[[54.4671,-3.0314],[54.4686,-3.0312],[54.4702,-3.0302],[54.4722,-3.0301],[54.4735,-3.029],[54.4736,-3.0261],[54.4759,-3.0239],[54.4774,-3.0238],[54.4793,-3.0211],[54.4792,-3.0187],[54.4831,-3.0124],[54.4883,-3.0082],[54.4907,-3.0076],[54.4921,-3.0071],[54.4946,-3.0064],[54.4959,-3.0065],[54.4974,-3.0062],[54.4989,-3.0042],[54.4997,-3.0035],[54.5012,-3.0027],[54.5029,-3.0016],[54.5059,-3.0001],[54.5102,-2.998],[54.5129,-2.9969],[54.5147,-2.9944],[54.5152,-2.9929],[54.5156,-2.9912],[54.5167,-2.9897],[54.5206,-2.9849],[54.5214,-2.9832],[54.5217,-2.9812],[54.5228,-2.9791],[54.5238,-2.9762],[54.5263,-2.9733],[54.5271,-2.9708],[54.5277,-2.9688],[54.5292,-2.9635],[54.5314,-2.9593],[54.5326,-2.9554],[54.5332,-2.951],[54.5334,-2.949],[54.5322,-2.9482],[54.5312,-2.9457],[54.5309,-2.9442],[54.5329,-2.9407],[54.5332,-2.9393]]},"s5":{"st":[24.5,950,890],"wp":[["Patterdale",0,183,"",0],["Boredale Hause",2,364,"山口，往 Angle Tarn 方向",0],["Angle Tarn",3.9,494,"冰斗湖，可午休",1],["Kidsty Pike",8.4,752,"C2C 最高點",1],["Haweswater 湖尾",13.9,271,"沿水庫北岸",0],["Burnbanks",17.8,209,"",0],["Shap Abbey",21.6,232,"13 世紀修道院廢墟",1],["Shap",24.5,255,"",0]],"prof":[[0,183],[0.23,166],[0.44,154],[0.58,153],[0.84,159],[0.97,173],[1.07,190],[1.21,213],[1.4,246],[1.53,289],[1.83,338],[2.12,386],[2.3,422],[2.48,449],[2.66,473],[2.86,494],[3.07,500],[3.45,498],[3.67,492],[3.88,494],[4.03,508],[4.26,528],[4.54,545],[4.9,553],[5.23,559],[5.42,558],[5.65,558],[5.76,566],[5.96,581],[6.14,610],[6.38,649],[6.59,685],[6.74,714],[7.09,729],[7.26,742],[7.42,753],[7.57,766],[7.86,772],[8.22,776],[8.3,763],[8.5,737],[8.88,676],[9.48,595],[9.87,508],[10.08,421],[10.43,345],[10.67,293],[10.79,264],[11.04,253],[11.21,252],[11.47,262],[11.69,266],[12.04,269],[12.2,265],[12.57,261],[12.9,261],[13.2,263],[13.69,268],[13.94,271],[14.46,271],[14.66,267],[15.07,261],[15.18,257],[15.34,255],[15.69,254],[15.86,253],[16.34,250],[17.01,245],[17.18,237],[17.31,226],[17.48,218],[17.75,209],[18,202],[18.15,195],[18.41,191],[18.6,192],[18.74,201],[19.03,214],[19.19,227],[19.74,228],[19.94,223],[20.1,211],[20.47,203],[20.73,197],[20.89,208],[21.35,222],[21.57,232],[21.91,237],[22.25,231],[22.61,227],[22.71,234],[22.91,243],[23.17,256],[23.41,261],[23.59,259],[23.82,256],[24.01,253],[24.2,253],[24.46,255]],"line":[[54.5332,-2.9393],[54.5339,-2.9361],[54.5343,-2.9335],[54.5342,-2.9314],[54.5357,-2.9286],[54.5367,-2.9286],[54.5369,-2.9275],[54.5363,-2.9256],[54.5353,-2.9233],[54.5345,-2.9218],[54.5326,-2.9187],[54.5314,-2.9157],[54.5299,-2.9149],[54.5284,-2.9144],[54.527,-2.9132],[54.5265,-2.9104],[54.5249,-2.9093],[54.5231,-2.9051],[54.5231,-2.9016],[54.5217,-2.8996],[54.5204,-2.899],[54.5189,-2.897],[54.5166,-2.895],[54.5149,-2.8905],[54.5142,-2.8858],[54.5127,-2.8843],[54.5113,-2.8818],[54.5107,-2.8809],[54.5094,-2.8785],[54.5081,-2.877],[54.5077,-2.8743],[54.5078,-2.8711],[54.5069,-2.8694],[54.5038,-2.8686],[54.5025,-2.8673],[54.5037,-2.866],[54.5049,-2.8655],[54.5065,-2.8619],[54.5063,-2.8565],[54.5058,-2.8557],[54.506,-2.8528],[54.5055,-2.847],[54.5057,-2.8377],[54.5044,-2.8322],[54.5034,-2.8298],[54.501,-2.8265],[54.4999,-2.8235],[54.4996,-2.822],[54.5011,-2.8193],[54.5024,-2.8184],[54.5047,-2.8182],[54.5066,-2.8189],[54.5097,-2.8189],[54.5111,-2.8194],[54.5139,-2.8166],[54.5164,-2.8139],[54.5188,-2.8119],[54.523,-2.8093],[54.5245,-2.8064],[54.5282,-2.8015],[54.5297,-2.8001],[54.5318,-2.795],[54.5321,-2.7935],[54.5329,-2.7916],[54.5347,-2.787],[54.5355,-2.7848],[54.5369,-2.7778],[54.5382,-2.7679],[54.538,-2.7655],[54.5378,-2.7647],[54.538,-2.7621],[54.5368,-2.7585],[54.5372,-2.7555],[54.5376,-2.7532],[54.5381,-2.7496],[54.5381,-2.7467],[54.5384,-2.7448],[54.5385,-2.7406],[54.5388,-2.7382],[54.5399,-2.7301],[54.5394,-2.7272],[54.5387,-2.7251],[54.5414,-2.7223],[54.5394,-2.7208],[54.538,-2.7202],[54.5353,-2.716],[54.5337,-2.7145],[54.5342,-2.7094],[54.5337,-2.7043],[54.5311,-2.7012],[54.5314,-2.7001],[54.5318,-2.6971],[54.5322,-2.6932],[54.5323,-2.6895],[54.5323,-2.6869],[54.5332,-2.6835],[54.5341,-2.6813],[54.5335,-2.6785],[54.5312,-2.6779]]},"s6":{"st":[31.3,520,590],"wp":[["Shap",0,255,"",0],["Oddendale 石圈",4.1,329,"史前石圈，路邊可拍照",1],["Orton",10.9,317,"有咖啡館與店，補給與午餐點（營業時間未查證）",0],["Sunbiggin Tarn",17.3,255,"荒原上的小湖",0],["Smardale Gill 高架橋",23.6,275,"舊鐵路高架橋，風景好",1],["Kirkby Stephen",31.3,172,"",0]],"prof":[[0,255],[0.66,258],[0.83,263],[0.98,270],[1.26,279],[1.66,291],[1.95,300],[2.07,309],[2.35,318],[2.6,326],[2.94,332],[3.17,333],[3.39,333],[3.55,328],[3.94,327],[4.21,331],[5.09,334],[5.37,336],[5.8,339],[6.16,341],[6.38,343],[6.6,336],[6.82,329],[7.26,320],[7.58,314],[7.91,312],[8.27,314],[8.56,324],[8.82,326],[9.08,321],[9.3,314],[9.62,317],[10.04,323],[10.86,317],[11.15,304],[11.38,285],[11.81,273],[12.07,269],[12.38,265],[12.65,261],[12.92,261],[13.06,261],[13.39,263],[13.73,263],[14,263],[14.46,266],[14.9,269],[15.26,271],[15.49,270],[15.97,270],[16.37,269],[16.63,267],[16.93,263],[17.05,258],[17.21,255],[17.28,255],[17.68,256],[17.94,257],[18.18,260],[18.46,259],[18.61,261],[18.99,262],[19.24,269],[19.5,276],[19.77,280],[20.03,286],[20.31,290],[20.54,295],[20.88,300],[21.11,303],[21.45,305],[21.6,307],[21.8,307],[22.15,304],[22.49,299],[22.66,295],[22.83,297],[23.03,299],[23.26,296],[23.5,283],[23.64,268],[23.74,254],[23.86,243],[24.11,235],[24.29,233],[24.48,238],[24.62,258],[24.92,278],[25.15,300],[25.52,314],[25.76,323],[25.92,328],[26.56,325],[26.97,317],[27.22,299],[27.44,281],[27.77,266],[28.02,255],[28.11,249],[28.42,243],[28.84,228],[29.37,214],[29.51,200],[29.62,195],[29.71,197],[29.84,199],[30,199],[30.12,194],[30.38,187],[30.58,181],[30.81,176],[30.97,175],[31.27,172]],"line":[[54.5312,-2.6779],[54.5266,-2.6733],[54.5259,-2.6717],[54.5257,-2.6704],[54.5257,-2.6662],[54.5234,-2.6614],[54.5213,-2.6589],[54.5211,-2.6574],[54.519,-2.6552],[54.5181,-2.6518],[54.517,-2.647],[54.5164,-2.6437],[54.5157,-2.6405],[54.5154,-2.6381],[54.5138,-2.6327],[54.5129,-2.6298],[54.5053,-2.6264],[54.5033,-2.6238],[54.5002,-2.6201],[54.4992,-2.6148],[54.4991,-2.6114],[54.4974,-2.6102],[54.4955,-2.6093],[54.4919,-2.6065],[54.49,-2.6033],[54.4908,-2.5988],[54.491,-2.5934],[54.4929,-2.5904],[54.4941,-2.587],[54.4944,-2.5832],[54.4938,-2.5802],[54.4924,-2.5761],[54.4893,-2.5728],[54.4824,-2.5763],[54.4802,-2.5761],[54.4783,-2.5746],[54.4754,-2.5703],[54.4759,-2.567],[54.4758,-2.5627],[54.4737,-2.5617],[54.4715,-2.5605],[54.4703,-2.5595],[54.4685,-2.5559],[54.4686,-2.5505],[54.4689,-2.5464],[54.4687,-2.5394],[54.4699,-2.5334],[54.4718,-2.529],[54.4715,-2.5256],[54.47,-2.5188],[54.4685,-2.5132],[54.467,-2.5106],[54.4653,-2.5076],[54.4646,-2.5064],[54.4638,-2.505],[54.4632,-2.5045],[54.4603,-2.5085],[54.4581,-2.5093],[54.4565,-2.5072],[54.4563,-2.5029],[54.4568,-2.5009],[54.4553,-2.4957],[54.4549,-2.4919],[54.4544,-2.488],[54.454,-2.4839],[54.4527,-2.4805],[54.4531,-2.4763],[54.4528,-2.4727],[54.4535,-2.4676],[54.4539,-2.4641],[54.4546,-2.4591],[54.4549,-2.4571],[54.4544,-2.4544],[54.4552,-2.4493],[54.4566,-2.4445],[54.4564,-2.4419],[54.4556,-2.4397],[54.4543,-2.4376],[54.4534,-2.4344],[54.4531,-2.4308],[54.4522,-2.4294],[54.4515,-2.4288],[54.4505,-2.4293],[54.4493,-2.4325],[54.4483,-2.432],[54.4484,-2.4291],[54.4485,-2.427],[54.4495,-2.4238],[54.4508,-2.4212],[54.4519,-2.4157],[54.4534,-2.4131],[54.4542,-2.4111],[54.4581,-2.404],[54.458,-2.3977],[54.4592,-2.3945],[54.4603,-2.3918],[54.4605,-2.3892],[54.4607,-2.3853],[54.4603,-2.3841],[54.462,-2.3802],[54.4629,-2.374],[54.4645,-2.3665],[54.4652,-2.3656],[54.4652,-2.364],[54.4654,-2.3627],[54.4647,-2.3612],[54.4656,-2.3592],[54.466,-2.3576],[54.4672,-2.3543],[54.4687,-2.3526],[54.4704,-2.3506],[54.4709,-2.3489],[54.4736,-2.3486],[54.4736,-2.3486]]},"s7":{"st":[18.4,570,420],"wp":[["Kirkby Stephen",0,172,"",0],["Hartley",0.8,181,"最後一個村子",0],["Nine Standards Rigg",7,653,"九座石塔，視野開闊，路線依告示",1],["Ravenseat",13.9,403,"荒原上的農場",0],["Keld",18.4,317,"",0]],"prof":[[0,172],[0.05,170],[0.1,173],[0.13,174],[0.18,176],[0.72,178],[0.82,181],[0.91,185],[0.93,191],[1.03,194],[1.09,201],[1.13,208],[1.19,216],[1.31,223],[1.44,233],[1.5,242],[1.56,252],[1.82,263],[1.94,274],[2.01,286],[2.2,297],[2.32,305],[2.4,310],[2.48,315],[2.56,316],[2.7,316],[2.76,317],[2.94,319],[2.99,323],[3.23,328],[3.34,337],[3.41,346],[3.49,356],[3.68,366],[3.79,377],[3.88,389],[4.03,399],[4.21,407],[4.29,418],[4.36,432],[4.54,445],[4.8,459],[5.02,473],[5.13,490],[5.25,511],[5.34,527],[5.56,541],[5.81,555],[5.85,566],[5.92,581],[5.99,594],[6.02,604],[6.26,615],[6.4,627],[6.48,637],[6.55,648],[6.67,652],[6.92,653],[7.02,653],[7.25,652],[7.35,651],[7.38,650],[7.46,650],[7.59,651],[7.8,652],[7.91,654],[7.98,653],[8.04,651],[8.08,647],[8.29,642],[8.43,638],[8.55,633],[8.59,628],[8.66,625],[8.72,621],[8.75,615],[8.86,609],[9.05,602],[9.21,595],[9.4,587],[9.53,578],[9.58,571],[9.66,566],[9.77,562],[9.81,552],[9.9,542],[9.97,533],[10.55,524],[10.68,513],[10.78,502],[11.01,488],[11.23,479],[11.35,471],[11.81,460],[11.89,450],[11.98,442],[12.14,434],[12.36,430],[12.47,425],[12.52,422],[12.61,419],[12.66,418],[12.8,418],[12.85,420],[12.99,421],[13.04,420],[13.23,419],[13.3,417],[13.51,414],[13.59,410],[13.64,406],[13.74,401],[13.8,401],[13.88,403],[14.19,404],[14.25,406],[14.3,407],[14.35,408],[14.45,410],[14.5,410],[14.61,408],[14.66,407],[14.79,406],[15.07,402],[15.22,398],[15.31,394],[15.8,387],[15.86,382],[15.91,374],[16.08,366],[16.12,363],[16.23,359],[16.46,354],[16.57,351],[16.9,347],[17.09,345],[17.16,341],[17.2,337],[17.27,333],[17.31,331],[17.41,329],[17.51,329],[17.57,330],[17.65,332],[17.86,334],[17.94,334],[18.15,334],[18.19,331],[18.25,328],[18.29,323],[18.39,317]],"line":[[54.4736,-2.3486],[54.4735,-2.3471],[54.4735,-2.3464],[54.4725,-2.3367],[54.4716,-2.3365],[54.4709,-2.3348],[54.4706,-2.3334],[54.471,-2.3299],[54.4714,-2.3284],[54.4724,-2.3226],[54.4713,-2.3194],[54.4699,-2.3175],[54.4691,-2.3155],[54.4685,-2.3127],[54.4667,-2.3113],[54.4637,-2.3123],[54.4625,-2.311],[54.4605,-2.3082],[54.4584,-2.3077],[54.4576,-2.3041],[54.457,-2.3004],[54.4556,-2.294],[54.455,-2.2906],[54.455,-2.2861],[54.4543,-2.2818],[54.454,-2.2798],[54.4535,-2.2757],[54.4542,-2.2725],[54.453,-2.2722],[54.45,-2.2706],[54.4474,-2.268],[54.4466,-2.2678],[54.4437,-2.2664],[54.4423,-2.2652],[54.4414,-2.2655],[54.4383,-2.2662],[54.4369,-2.2664],[54.4359,-2.2666],[54.4346,-2.2664],[54.4319,-2.2639],[54.4292,-2.2621],[54.4285,-2.2607],[54.4277,-2.2588],[54.4263,-2.2583],[54.4202,-2.2553],[54.4204,-2.2505],[54.4212,-2.2456],[54.4221,-2.2374],[54.4222,-2.2337],[54.4215,-2.2288],[54.4218,-2.2267],[54.4219,-2.224],[54.4214,-2.222],[54.422,-2.2183],[54.4225,-2.2143],[54.4235,-2.2133],[54.4249,-2.2133],[54.4227,-2.2108],[54.4219,-2.2099],[54.4206,-2.2093],[54.4196,-2.2078],[54.4183,-2.2061],[54.4147,-2.2036],[54.411,-2.1976],[54.4109,-2.196],[54.4102,-2.193],[54.4102,-2.1878],[54.4101,-2.181],[54.4097,-2.177],[54.4094,-2.1777],[54.4083,-2.1773],[54.408,-2.1749],[54.4066,-2.1714],[54.4045,-2.1687],[54.4049,-2.1673],[54.406,-2.1665],[54.406,-2.1665]]},"s8":{"st":[17.4,530,650],"wp":[["Keld",0,317,"",0],["Swinner Gill",2,410,"鉛礦遺跡",0],["Old Gang 煉鉛廠",5.9,483,"荒廢的煉鉛廠，高路線的亮點",1],["Surrender Bridge",7.4,556,"",0],["Healaugh",13.6,369,"下到谷地",0],["Reeth",17.4,206,"",0]],"prof":[[0,317],[0.26,311],[0.28,307],[0.34,305],[0.37,304],[0.4,304],[0.47,305],[0.53,311],[0.58,317],[0.61,323],[0.67,329],[0.72,335],[0.81,340],[1.1,346],[1.18,350],[1.23,354],[1.27,359],[1.31,364],[1.45,370],[1.58,376],[1.62,383],[1.71,390],[1.74,398],[1.81,405],[1.94,409],[2.01,410],[2.08,410],[2.26,410],[2.44,413],[2.51,417],[2.56,421],[2.65,429],[2.72,441],[2.76,458],[2.8,475],[2.88,492],[3.14,508],[3.2,526],[3.27,542],[3.53,556],[3.87,561],[3.94,565],[4.03,565],[4.34,561],[4.42,555],[4.53,548],[4.57,541],[4.64,533],[4.7,523],[4.72,509],[4.99,496],[5.12,480],[5.24,465],[5.27,449],[5.37,438],[5.46,432],[5.5,434],[5.54,437],[5.6,445],[5.65,456],[5.77,469],[5.87,483],[6,496],[6.08,509],[6.17,522],[6.31,533],[6.42,542],[6.57,551],[6.77,557],[7.01,561],[7.07,562],[7.15,562],[7.26,560],[7.38,556],[7.48,551],[7.58,546],[7.66,540],[7.8,530],[7.92,516],[8.18,502],[8.48,488],[8.82,475],[8.91,463],[8.98,450],[9.18,441],[9.19,435],[9.51,428],[9.63,421],[9.75,414],[9.89,407],[9.97,400],[10.11,395],[10.17,391],[10.23,387],[10.29,384],[10.39,382],[10.55,380],[10.85,376],[11.11,371],[11.41,366],[11.56,363],[11.67,360],[11.9,356],[12.06,354],[12.1,355],[12.14,355],[12.27,357],[12.43,361],[12.48,364],[12.58,368],[13.1,368],[13.29,368],[13.49,369],[13.59,369],[13.66,361],[13.73,353],[13.79,343],[14.17,337],[14.22,330],[14.35,326],[14.42,325],[14.52,327],[14.64,330],[14.84,333],[15.15,336],[15.28,337],[15.41,334],[15.55,330],[15.68,325],[15.85,319],[15.94,312],[16.12,304],[16.25,295],[16.37,287],[16.42,278],[16.63,268],[16.72,259],[16.86,250],[16.98,241],[17.07,232],[17.16,223],[17.25,214],[17.43,206]],"line":[[54.406,-2.1665],[54.4048,-2.163],[54.4049,-2.1618],[54.4055,-2.1611],[54.4048,-2.1599],[54.405,-2.1587],[54.4046,-2.1568],[54.4034,-2.1513],[54.4038,-2.1505],[54.4031,-2.1482],[54.4033,-2.1464],[54.4036,-2.1447],[54.4032,-2.1416],[54.4039,-2.1406],[54.4066,-2.1376],[54.4062,-2.1361],[54.4068,-2.134],[54.4068,-2.1327],[54.4072,-2.1277],[54.4075,-2.1259],[54.4062,-2.1171],[54.4063,-2.1146],[54.4069,-2.1087],[54.4072,-2.1065],[54.4077,-2.105],[54.4096,-2.1018],[54.4115,-2.1001],[54.4106,-2.099],[54.4113,-2.0984],[54.4114,-2.0978],[54.4101,-2.0963],[54.4122,-2.0959],[54.4129,-2.0939],[54.4113,-2.0913],[54.4093,-2.0875],[54.4082,-2.0832],[54.4079,-2.0804],[54.4077,-2.077],[54.408,-2.0744],[54.4088,-2.0705],[54.4084,-2.0621],[54.4067,-2.0566],[54.405,-2.0538],[54.4033,-2.0495],[54.4017,-2.0471],[54.401,-2.0441],[54.4002,-2.0413],[54.4001,-2.0395],[54.3989,-2.036],[54.3972,-2.028],[54.3955,-2.0218],[54.3947,-2.0167],[54.3955,-2.014],[54.3955,-2.0114],[54.3969,-2.0092],[54.3966,-2],[54.3951,-1.9945],[54.3944,-1.9923],[54.3936,-1.991],[54.3915,-1.9854],[54.3917,-1.9825],[54.3917,-1.9793],[54.3918,-1.9715],[54.3923,-1.9676],[54.3928,-1.9636],[54.3931,-1.9597],[54.3938,-1.9552],[54.3924,-1.9542],[54.3909,-1.9505],[54.3911,-1.9466],[54.3895,-1.9471],[54.3895,-1.9429],[54.3895,-1.9429]]},"s9":{"st":[16.5,310,380],"wp":[["Reeth",0,206,"",0],["Marrick Priory",3.7,190,"12 世紀修道院遺跡",1],["Marske",8.8,161,"小村，路過",0],["Applegarth",12.8,202,"",0],["Richmond",16.5,133,"城堡與市集廣場",1]],"prof":[[0,206],[0.1,199],[0.19,193],[0.27,189],[0.4,186],[0.48,184],[0.55,182],[0.64,181],[0.7,180],[0.8,179],[1.02,178],[1.11,177],[1.26,176],[1.35,175],[1.56,175],[1.63,175],[1.82,174],[2.14,174],[2.54,174],[2.56,173],[2.69,174],[3.02,173],[3.1,174],[3.23,175],[3.31,176],[3.38,178],[3.45,180],[3.58,184],[3.68,190],[3.73,201],[3.86,213],[3.97,227],[4.17,241],[4.23,256],[4.47,269],[4.57,281],[4.77,288],[4.9,294],[4.96,296],[5.07,298],[5.15,300],[5.21,303],[5.25,305],[5.3,301],[5.59,298],[5.8,294],[6.01,288],[6.04,279],[6.18,267],[6.25,255],[6.4,247],[6.58,240],[6.65,235],[6.69,232],[6.79,234],[6.88,240],[6.95,246],[7.22,250],[7.58,252],[7.77,253],[7.93,251],[7.99,243],[8.13,228],[8.22,211],[8.34,197],[8.65,184],[8.73,173],[8.76,165],[8.8,161],[8.86,162],[8.94,166],[9.03,169],[9.19,173],[9.23,175],[9.28,176],[9.39,175],[9.5,172],[9.57,169],[9.78,165],[10.02,163],[10.14,163],[10.24,166],[10.36,171],[10.47,178],[10.57,183],[10.65,190],[10.99,193],[11.13,194],[11.26,193],[11.34,190],[11.46,188],[11.52,186],[11.73,185],[11.84,186],[12.09,187],[12.15,188],[12.34,190],[12.38,193],[12.46,196],[12.58,199],[12.7,200],[12.85,202],[13.07,205],[13.23,206],[13.34,208],[13.42,209],[13.51,210],[13.59,214],[13.67,212],[13.76,210],[14.21,207],[14.68,200],[15.28,190],[15.49,180],[15.7,167],[16.09,158],[16.18,150],[16.43,141],[16.5,133]],"line":[[54.3895,-1.9429],[54.3884,-1.9409],[54.3878,-1.9385],[54.3879,-1.9367],[54.3868,-1.9354],[54.3841,-1.9341],[54.3827,-1.9312],[54.3832,-1.927],[54.3827,-1.923],[54.3813,-1.9127],[54.3807,-1.9108],[54.3785,-1.9057],[54.3774,-1.9031],[54.3766,-1.9017],[54.3761,-1.8982],[54.3759,-1.8954],[54.3756,-1.8907],[54.3767,-1.8865],[54.3788,-1.8838],[54.3799,-1.8821],[54.3795,-1.8802],[54.3791,-1.8789],[54.3821,-1.8781],[54.385,-1.8741],[54.3861,-1.8726],[54.3875,-1.8704],[54.3886,-1.8672],[54.3895,-1.8659],[54.3902,-1.8637],[54.3947,-1.8578],[54.3964,-1.8532],[54.3969,-1.8503],[54.3972,-1.8471],[54.3993,-1.8423],[54.3994,-1.8413],[54.3999,-1.8394],[54.4009,-1.8368],[54.4014,-1.8358],[54.4031,-1.8344],[54.4045,-1.8308],[54.4066,-1.8266],[54.408,-1.8244],[54.4088,-1.8215],[54.4083,-1.8152],[54.4087,-1.8111],[54.4091,-1.8083],[54.41,-1.8046],[54.4106,-1.7991],[54.411,-1.7954],[54.4116,-1.794],[54.4119,-1.7903],[54.4117,-1.7847],[54.4103,-1.7814],[54.4093,-1.7796],[54.4082,-1.7782],[54.4083,-1.7698],[54.4088,-1.7536],[54.407,-1.748],[54.4039,-1.743],[54.4034,-1.7384],[54.4034,-1.7384]]},"s10":{"st":[22.7,90,190],"wp":[["Richmond",0,133,"",0],["Catterick Bridge",8.3,60,"15 世紀古橋，午餐點",1],["Bolton on Swale",11.4,53,"教堂與小村",0],["Streetlam",17.8,42,"",0],["Danby Wiske",22.7,35,"",0]],"prof":[[0,133],[0.1,127],[0.2,121],[0.25,116],[0.29,111],[0.36,108],[0.42,105],[0.57,104],[0.86,105],[0.97,106],[1.02,106],[1.08,106],[1.24,104],[1.44,103],[1.74,103],[1.82,101],[1.96,99],[2.03,97],[2.07,95],[2.17,93],[2.29,90],[2.45,89],[2.63,90],[2.7,92],[2.95,95],[3.04,98],[3.08,101],[3.19,104],[3.24,107],[3.41,108],[3.59,107],[3.79,105],[3.87,102],[4.11,100],[4.17,97],[4.25,94],[4.37,91],[4.46,90],[4.56,89],[4.68,89],[4.77,89],[5.18,87],[5.43,87],[5.46,86],[5.82,85],[6.14,85],[6.37,84],[6.4,83],[6.43,82],[6.56,81],[6.75,79],[6.81,78],[6.9,77],[6.97,76],[7.05,76],[7.18,76],[7.26,75],[7.33,75],[7.41,73],[7.56,71],[7.71,69],[7.77,67],[7.84,65],[7.99,63],[8.06,62],[8.09,61],[8.15,61],[8.27,60],[8.47,60],[8.61,59],[8.71,59],[8.85,58],[8.91,58],[9.12,58],[9.22,58],[9.37,57],[9.46,57],[9.6,57],[10.09,57],[10.18,56],[10.29,56],[10.59,56],[10.75,56],[10.9,55],[11.01,55],[11.25,54],[11.31,54],[11.42,53],[11.45,52],[11.53,52],[11.6,51],[11.63,51],[11.73,51],[11.87,50],[11.96,50],[12.05,50],[12.18,50],[12.27,49],[12.36,49],[12.4,49],[12.46,48],[12.52,48],[12.87,48],[12.92,47],[12.96,47],[12.99,47],[13.08,48],[13.14,49],[13.24,48],[13.29,48],[13.47,47],[13.8,47],[14,46],[14.03,45],[14.15,44],[14.41,44],[14.55,44],[14.74,44],[14.9,44],[15.12,44],[15.18,44],[15.4,44],[15.53,44],[15.68,44],[15.88,42],[16.42,42],[16.87,41],[17.26,41],[17.44,41],[17.53,42],[17.76,42],[18.02,44],[18.08,45],[18.25,46],[18.34,46],[18.38,46],[18.66,47],[18.74,46],[18.98,45],[19.01,44],[19.49,42],[19.7,41],[19.89,41],[20.05,40],[20.45,40],[20.68,41],[20.74,42],[20.92,43],[21.11,43],[21.71,43],[21.83,42],[21.94,41],[22.16,39],[22.26,37],[22.5,36],[22.69,35],[22.73,35]],"line":[[54.4034,-1.7384],[54.4017,-1.7392],[54.4013,-1.7403],[54.4001,-1.7402],[54.4,-1.7337],[54.401,-1.7321],[54.4017,-1.7289],[54.3989,-1.723],[54.3969,-1.7234],[54.397,-1.7218],[54.3952,-1.7211],[54.3922,-1.7205],[54.3904,-1.7169],[54.39,-1.7151],[54.3889,-1.7136],[54.3877,-1.7088],[54.3869,-1.7055],[54.3865,-1.7013],[54.3876,-1.699],[54.3876,-1.6962],[54.3871,-1.6946],[54.3904,-1.6892],[54.3915,-1.6835],[54.3903,-1.6753],[54.39,-1.6746],[54.3891,-1.67],[54.3889,-1.668],[54.3887,-1.6658],[54.3877,-1.6632],[54.387,-1.6613],[54.3876,-1.6569],[54.3882,-1.6552],[54.3886,-1.652],[54.3886,-1.6509],[54.3902,-1.6487],[54.3904,-1.645],[54.3914,-1.6424],[54.3928,-1.6385],[54.3933,-1.635],[54.391,-1.6262],[54.3913,-1.6232],[54.3885,-1.6221],[54.3878,-1.6189],[54.3881,-1.6148],[54.3876,-1.6128],[54.3874,-1.6107],[54.3876,-1.6087],[54.387,-1.6052],[54.3851,-1.6055],[54.3837,-1.6041],[54.3829,-1.604],[54.38,-1.6],[54.3795,-1.6001],[54.3789,-1.5987],[54.3799,-1.5971],[54.3787,-1.5949],[54.3756,-1.5889],[54.3754,-1.5873],[54.3745,-1.5815],[54.3744,-1.5761],[54.3745,-1.5718],[54.3758,-1.567],[54.3761,-1.562],[54.3745,-1.547],[54.3723,-1.5391],[54.3702,-1.5358],[54.3729,-1.535],[54.3745,-1.534],[54.375,-1.5294],[54.3744,-1.5245],[54.3744,-1.5168],[54.3711,-1.5145],[54.3726,-1.5061],[54.3742,-1.5029],[54.3746,-1.4974],[54.376,-1.4871],[54.3768,-1.4822],[54.3798,-1.4823],[54.3817,-1.4829],[54.3817,-1.4829]]},"s11":{"st":[24.8,220,50],"wp":[["Danby Wiske",0,35,"",0],["A19 天橋",10.1,70,"要過的大馬路",0],["Ingleby Cross",22.4,81,"離終點約 2.5 km，之後穿過森林上到 Osmotherley",1],["Osmotherley",24.8,220,"",0]],"prof":[[0,35],[0.03,35],[0.1,37],[0.21,39],[0.52,41],[0.91,43],[1.14,47],[1.3,50],[1.48,54],[1.84,55],[2.24,57],[2.44,58],[2.52,58],[2.74,58],[3.03,57],[3.21,57],[3.26,57],[3.32,57],[3.45,58],[3.6,59],[4.12,60],[4.28,60],[4.41,60],[4.66,60],[4.93,58],[5.05,57],[5.16,56],[5.19,55],[5.26,55],[5.32,56],[5.4,56],[5.43,57],[5.8,57],[5.92,58],[5.98,58],[6.14,58],[6.26,58],[6.52,58],[6.76,59],[7.14,59],[7.18,59],[7.27,59],[7.45,60],[7.81,61],[7.87,61],[8.11,62],[8.15,63],[8.22,64],[8.32,64],[8.5,64],[8.6,64],[8.65,64],[8.85,64],[8.92,65],[9.01,66],[9.16,67],[9.52,68],[9.87,69],[10.08,70],[10.29,72],[10.39,73],[10.51,73],[10.66,74],[10.7,74],[11.02,73],[11.47,73],[11.74,74],[11.81,74],[12.08,74],[12.12,74],[12.19,75],[12.31,77],[12.46,78],[12.7,78],[12.91,78],[13.06,78],[13.23,78],[13.31,77],[13.5,76],[13.55,74],[13.74,72],[13.96,70],[14.35,69],[14.4,68],[14.48,68],[14.57,67],[14.73,69],[14.75,70],[14.95,72],[15.27,74],[15.32,74],[15.4,74],[15.53,75],[15.84,74],[16.21,73],[16.28,73],[16.4,72],[16.49,72],[16.57,72],[17.12,72],[17.24,72],[17.46,73],[17.49,73],[17.59,74],[17.89,74],[18.03,74],[18.22,75],[18.31,76],[18.4,76],[18.52,77],[18.64,76],[18.76,75],[18.88,76],[19.02,75],[19.25,75],[19.46,74],[19.52,74],[19.61,74],[19.68,74],[19.73,75],[19.88,74],[20.03,74],[20.16,74],[20.43,74],[20.55,74],[20.77,75],[20.93,75],[21.05,77],[21.18,78],[21.41,80],[21.75,82],[21.81,82],[22.06,81],[22.19,81],[22.45,81],[22.75,83],[22.85,85],[22.94,90],[23.1,98],[23.16,106],[23.34,114],[23.59,125],[23.63,137],[23.69,148],[23.83,158],[23.91,167],[24,176],[24.08,187],[24.15,197],[24.64,208],[24.83,220]],"line":[[54.3817,-1.4829],[54.3821,-1.4822],[54.3845,-1.4774],[54.3833,-1.4687],[54.3813,-1.4646],[54.3825,-1.4533],[54.3836,-1.4495],[54.3851,-1.445],[54.3868,-1.4442],[54.3859,-1.4416],[54.3866,-1.4317],[54.3876,-1.4289],[54.3888,-1.4215],[54.3889,-1.4182],[54.3884,-1.417],[54.3892,-1.416],[54.3904,-1.4105],[54.3902,-1.4085],[54.3915,-1.4064],[54.3899,-1.4021],[54.3906,-1.396],[54.3911,-1.3921],[54.3927,-1.3872],[54.391,-1.3856],[54.392,-1.3847],[54.3935,-1.3816],[54.3957,-1.382],[54.397,-1.3808],[54.3988,-1.3736],[54.4009,-1.3661],[54.402,-1.3617],[54.4029,-1.3581],[54.4043,-1.3537],[54.4057,-1.3428],[54.4062,-1.3377],[54.4063,-1.3362],[54.4048,-1.333],[54.405,-1.3277],[54.4072,-1.3268],[54.409,-1.3295],[54.4111,-1.33],[54.4135,-1.3352],[54.4129,-1.3367],[54.4148,-1.3379],[54.4166,-1.338],[54.4199,-1.3381],[54.4214,-1.3399],[54.4249,-1.3357],[54.4247,-1.3328],[54.4252,-1.3304],[54.4278,-1.3225],[54.4284,-1.3188],[54.4255,-1.3152],[54.4243,-1.3114],[54.4251,-1.3089],[54.4232,-1.307],[54.4214,-1.3089],[54.4198,-1.3138],[54.4184,-1.3171],[54.4179,-1.3179],[54.4169,-1.3157],[54.4149,-1.313],[54.4125,-1.3116],[54.4097,-1.3147],[54.4079,-1.3142],[54.4033,-1.3103],[54.4013,-1.3137],[54.3992,-1.309],[54.3965,-1.3051],[54.3949,-1.3024],[54.3932,-1.3004],[54.3908,-1.3022],[54.3897,-1.3],[54.3882,-1.3005],[54.3869,-1.301],[54.3809,-1.3023],[54.3809,-1.3023]]},"s12":{"st":[15.7,710,650],"wp":[["Osmotherley",0,220,"",0],["Scarth Wood Moor",2.5,235,"",0],["Live Moor",7.1,281,"",0],["Carlton Bank",9.6,385,"Lord Stones 咖啡館，補給與午餐（營業時間未查證）",1],["Cringle Moor",11.9,408,"稜線視野",1],["Hasty Bank",15.3,341,"Wain Stones 岩塊",0],["Clay Bank Top",15.7,311,"與接送的民宿碰面",0]],"prof":[[0,220],[0.2,231],[0.38,243],[0.49,259],[0.53,271],[0.61,280],[1.12,285],[1.24,286],[1.34,284],[1.46,279],[1.71,271],[2.03,262],[2.3,248],[2.5,235],[2.58,224],[2.81,215],[2.84,208],[2.88,201],[2.93,187],[2.98,178],[3.53,169],[3.8,160],[3.88,151],[3.93,143],[4.07,134],[4.14,134],[4.5,136],[4.56,135],[4.76,135],[4.93,136],[5.19,136],[5.38,137],[5.42,137],[5.48,137],[5.52,140],[5.59,144],[5.64,148],[5.76,152],[5.88,158],[6.07,168],[6.16,182],[6.26,199],[6.4,220],[6.54,241],[6.78,263],[7.07,281],[7.27,293],[7.44,302],[7.63,309],[7.87,313],[8.03,315],[8.19,319],[8.31,325],[8.36,334],[8.4,342],[8.47,349],[8.58,356],[8.71,364],[8.75,372],[9.02,380],[9.37,386],[9.42,388],[9.55,385],[9.65,381],[9.74,372],[9.83,363],[9.86,350],[9.95,337],[9.99,325],[10.06,317],[10.15,310],[10.32,303],[10.43,299],[10.47,299],[10.7,305],[10.94,315],[11.06,328],[11.24,343],[11.35,360],[11.42,375],[11.51,391],[11.52,402],[11.63,408],[11.79,412],[11.88,408],[12.06,398],[12.11,385],[12.29,368],[12.4,351],[12.46,336],[12.5,321],[12.65,315],[12.78,317],[12.83,326],[12.96,340],[13.05,351],[13.17,360],[13.28,368],[13.35,371],[13.41,367],[13.5,357],[13.57,343],[13.65,335],[13.7,332],[13.8,334],[13.97,341],[14.04,351],[14.17,363],[14.33,376],[14.53,385],[14.73,391],[14.84,390],[14.93,376],[14.96,358],[15.29,341],[15.56,324],[15.69,311]],"line":[[54.3809,-1.3023],[54.3836,-1.2987],[54.3847,-1.2977],[54.3895,-1.2937],[54.3914,-1.2936],[54.3933,-1.289],[54.3945,-1.2799],[54.3959,-1.2765],[54.3965,-1.2726],[54.3968,-1.2717],[54.3987,-1.263],[54.4011,-1.2595],[54.4003,-1.2577],[54.3979,-1.2526],[54.3965,-1.2498],[54.3968,-1.2442],[54.398,-1.2418],[54.3986,-1.2429],[54.3996,-1.2425],[54.4011,-1.2398],[54.4034,-1.2415],[54.4043,-1.2396],[54.4052,-1.2339],[54.4046,-1.2267],[54.4053,-1.2216],[54.406,-1.2156],[54.4069,-1.2116],[54.4069,-1.2102],[54.4079,-1.208],[54.4092,-1.2067],[54.4142,-1.2028],[54.4157,-1.2017],[54.4166,-1.1994],[54.4169,-1.1978],[54.4179,-1.1975],[54.4188,-1.1956],[54.4206,-1.1926],[54.4209,-1.1887],[54.421,-1.1832],[54.4221,-1.1791],[54.4229,-1.1771],[54.422,-1.1759],[54.4209,-1.1727],[54.421,-1.1692],[54.4221,-1.1655],[54.4226,-1.1643],[54.423,-1.1602],[54.4229,-1.1576],[54.4234,-1.1546],[54.4234,-1.1518],[54.4233,-1.1497],[54.4232,-1.1474],[54.4236,-1.1452],[54.4242,-1.1417],[54.4246,-1.1373],[54.4253,-1.1314],[54.4257,-1.1285],[54.4232,-1.1251],[54.4221,-1.1193],[54.4221,-1.1193]]},"s13":{"st":[13.8,230,100],"wp":[["Clay Bank Top",0,311,"",0],["Round Hill",2.1,404,"Cleveland Way 最高點",1],["Bloworth Crossing",5.8,396,"舊鐵路路基，沿它走很平",0],["Rosedale Head",9,362,"荒原最開闊的一段",1],["Lion Inn",13.8,388,"老酒館，晚餐與住宿",0]],"prof":[[0,311],[0.1,304],[0.23,303],[0.37,315],[0.57,331],[0.64,346],[0.77,360],[0.82,371],[1.03,375],[1.27,378],[1.59,380],[1.67,382],[1.74,386],[1.83,394],[2.06,404],[2.22,414],[2.62,424],[2.84,431],[3.33,438],[3.43,443],[3.67,443],[3.75,443],[3.83,441],[3.93,436],[4.14,431],[4.28,426],[4.52,419],[4.89,413],[4.96,407],[5.55,402],[5.67,399],[5.76,396],[5.84,394],[5.93,393],[6.3,391],[6.4,390],[6.5,389],[6.6,388],[6.82,387],[6.94,386],[7.04,385],[7.1,383],[7.26,382],[7.33,380],[7.43,379],[7.51,378],[7.57,377],[7.65,376],[7.91,375],[8,374],[8.17,372],[8.24,371],[8.52,370],[8.61,369],[8.69,367],[8.89,364],[9,362],[9.2,360],[10.27,359],[10.41,358],[10.57,358],[10.75,358],[10.9,360],[11.01,362],[11.26,363],[11.35,365],[11.43,366],[11.51,367],[11.78,368],[11.87,369],[11.93,371],[12.12,372],[12.19,373],[12.27,373],[12.38,373],[12.5,373],[12.67,373],[12.77,371],[12.87,370],[12.97,370],[13.07,369],[13.18,370],[13.35,372],[13.42,376],[13.53,381],[13.6,384],[13.78,388]],"line":[[54.4221,-1.1193],[54.4222,-1.1159],[54.4213,-1.1108],[54.4198,-1.1094],[54.4178,-1.1072],[54.4143,-1.101],[54.4133,-1.0996],[54.4107,-1.0975],[54.4072,-1.092],[54.4048,-1.0819],[54.4055,-1.0768],[54.4056,-1.0747],[54.4057,-1.07],[54.4067,-1.0643],[54.4065,-1.0576],[54.4037,-1.0477],[54.404,-1.0452],[54.4078,-1.0429],[54.4087,-1.0403],[54.4073,-1.0361],[54.4073,-1.0329],[54.409,-1.031],[54.4097,-1.0288],[54.4093,-1.0268],[54.4067,-1.0241],[54.4058,-1.0205],[54.4033,-1.0173],[54.4027,-1.0149],[54.4033,-1.0102],[54.3976,-0.9935],[54.3956,-0.9903],[54.3932,-0.9877],[54.3899,-0.9875],[54.3887,-0.986],[54.388,-0.9809],[54.3873,-0.9788],[54.3861,-0.9755],[54.3867,-0.9729],[54.3892,-0.9713],[54.3904,-0.9691],[54.3907,-0.9662],[54.3893,-0.9627],[54.3886,-0.9606],[54.3893,-0.9569],[54.3893,-0.9569]]},"s14":{"st":[20.9,120,480],"wp":[["Lion Inn",0,388,"",0],["Danby High Moor",8.9,328,"荒原下行",0],["Glaisdale Rigg",14.1,163,"稜線俯瞰 Esk 谷",0],["Beggar's Bridge",16.5,95,"17 世紀古石橋",1],["Egton Bridge",18.2,41,"村子，午餐點（營業時間未查證）",0],["Grosmont",20.9,46,"蒸汽火車站",1]],"prof":[[0,388],[0.07,393],[0.26,397],[0.42,399],[0.48,400],[0.62,401],[0.84,404],[1.1,405],[1.23,404],[1.57,402],[1.74,401],[1.88,399],[2,399],[2.13,399],[2.27,399],[2.59,400],[2.71,403],[2.78,404],[3.04,406],[3.19,405],[3.35,405],[3.49,405],[3.64,407],[3.86,409],[4.13,411],[4.44,414],[4.47,416],[4.52,418],[4.76,419],[4.87,417],[4.93,415],[5.11,411],[5.22,407],[5.45,403],[5.51,398],[5.59,394],[5.66,389],[5.73,386],[5.86,383],[5.95,380],[6,375],[6.1,371],[6.32,368],[6.44,365],[6.59,364],[6.63,363],[6.78,364],[7.01,365],[7.25,364],[7.54,362],[7.71,359],[8.42,352],[8.49,345],[8.73,336],[8.9,328],[9.03,324],[9.36,321],[9.44,312],[9.6,304],[10.27,296],[11.08,285],[11.36,273],[12.03,258],[12.88,242],[13,231],[13.37,219],[13.49,206],[13.59,197],[13.74,188],[13.94,180],[14.05,171],[14.11,163],[14.16,155],[14.25,147],[14.37,139],[14.44,131],[14.52,122],[14.55,112],[14.62,104],[14.65,97],[14.7,91],[14.77,87],[14.87,84],[15.07,81],[15.13,81],[15.23,80],[15.33,80],[15.37,81],[15.47,84],[15.68,88],[15.76,92],[15.9,95],[15.96,98],[16.02,102],[16.17,104],[16.21,103],[16.32,101],[16.36,97],[16.51,95],[16.56,94],[16.61,91],[16.68,87],[16.73,82],[16.82,76],[16.89,71],[17.1,66],[17.17,59],[17.25,53],[17.41,49],[17.5,46],[17.55,44],[17.7,43],[17.8,43],[17.88,43],[17.92,42],[18.14,42],[18.19,41],[18.63,40],[18.99,40],[19.22,39],[19.36,36],[19.45,34],[19.64,32],[19.96,31],[20.05,29],[20.25,28],[20.32,27],[20.41,27],[20.48,28],[20.65,32],[20.76,37],[20.86,46]],"line":[[54.3893,-0.9569],[54.3913,-0.9565],[54.3933,-0.9567],[54.3959,-0.9599],[54.3992,-0.9618],[54.403,-0.9589],[54.4048,-0.9563],[54.4068,-0.9543],[54.4084,-0.9486],[54.406,-0.9457],[54.4041,-0.9423],[54.4032,-0.9383],[54.4035,-0.9307],[54.4049,-0.9262],[54.4073,-0.9245],[54.4078,-0.9223],[54.4083,-0.918],[54.4077,-0.9137],[54.4067,-0.9127],[54.4068,-0.9097],[54.4066,-0.9076],[54.4057,-0.903],[54.4058,-0.8989],[54.4055,-0.8961],[54.4082,-0.8904],[54.4104,-0.8846],[54.416,-0.8771],[54.4194,-0.8752],[54.4223,-0.8701],[54.4229,-0.8667],[54.4307,-0.8485],[54.4334,-0.8345],[54.4353,-0.8208],[54.4384,-0.8153],[54.4388,-0.8115],[54.441,-0.8088],[54.4406,-0.8073],[54.4389,-0.8062],[54.4394,-0.8041],[54.4386,-0.8034],[54.4387,-0.8022],[54.4388,-0.8001],[54.4386,-0.7963],[54.4384,-0.7933],[54.4373,-0.7926],[54.435,-0.7905],[54.4337,-0.7886],[54.4336,-0.7855],[54.4325,-0.7842],[54.4314,-0.782],[54.4315,-0.7805],[54.4309,-0.779],[54.4317,-0.7769],[54.4328,-0.7735],[54.4341,-0.7707],[54.4348,-0.7691],[54.4353,-0.7655],[54.4363,-0.7647],[54.4364,-0.7613],[54.4346,-0.7494],[54.4343,-0.7436],[54.4359,-0.7404],[54.4381,-0.7354],[54.4386,-0.7314],[54.4375,-0.7302],[54.4359,-0.7267],[54.4359,-0.7252]]},"s15":{"st":[23.9,600,590],"wp":[["Grosmont",0,46,"",0],["Littlebeck",6.1,66,"森林小徑，Falling Foss 瀑布就在附近",1],["Sneaton Moor",12.1,211,"荒原最後一段",0],["Hawsker",18.9,79,"海岸小路開始",0],["Robin Hood's Bay",23.9,38,"把石子丟進北海",1]],"prof":[[0,46],[0.27,68],[0.46,101],[0.83,144],[1.34,184],[1.71,223],[2.01,252],[2.21,269],[2.78,279],[3.18,280],[3.35,272],[3.68,259],[4.18,243],[4.41,222],[4.74,202],[4.98,167],[5.53,132],[5.75,100],[5.93,76],[6.08,66],[6.28,67],[6.45,74],[6.51,79],[6.75,82],[6.87,87],[7.07,98],[7.28,112],[7.46,123],[7.59,128],[7.87,123],[8.01,121],[8.11,120],[8.22,121],[8.4,124],[8.47,126],[8.69,131],[8.92,136],[9.05,139],[9.17,143],[9.35,151],[9.65,166],[10.23,183],[10.39,199],[10.57,212],[11.07,214],[11.81,215],[12.12,206],[12.66,200],[13.16,196],[13.38,194],[13.94,194],[14.2,187],[14.66,178],[14.92,165],[15.06,150],[15.38,136],[15.67,127],[15.78,118],[16.3,114],[16.52,109],[16.99,106],[17.11,106],[17.34,113],[17.69,119],[18.08,120],[18.23,118],[18.45,113],[18.58,98],[18.93,79],[19.15,66],[19.41,62],[19.86,71],[20.15,79],[20.27,86],[20.56,84],[20.87,78],[21.03,70],[21.15,59],[21.3,54],[21.51,53],[21.86,54],[22.11,53],[22.34,57],[22.57,60],[22.67,66],[22.85,71],[22.95,74],[23.18,73],[23.34,69],[23.52,63],[23.64,53],[23.9,38]],"line":[[54.4359,-0.7252],[54.4358,-0.7211],[54.435,-0.7184],[54.4342,-0.7134],[54.4353,-0.7057],[54.4345,-0.7002],[54.4331,-0.6963],[54.432,-0.694],[54.429,-0.6869],[54.4266,-0.6828],[54.4265,-0.6803],[54.4275,-0.6756],[54.431,-0.6724],[54.431,-0.6689],[54.4313,-0.6638],[54.4305,-0.6607],[54.4322,-0.6529],[54.4331,-0.6501],[54.4334,-0.6474],[54.4325,-0.6461],[54.4312,-0.6441],[54.4313,-0.6416],[54.4308,-0.6415],[54.4291,-0.6398],[54.4282,-0.6387],[54.4265,-0.6384],[54.4248,-0.6372],[54.4236,-0.6357],[54.4224,-0.6355],[54.4201,-0.6337],[54.4193,-0.6322],[54.4186,-0.6319],[54.4184,-0.6306],[54.4174,-0.6289],[54.4168,-0.6291],[54.4154,-0.6269],[54.4133,-0.6268],[54.4123,-0.6267],[54.4112,-0.6266],[54.4098,-0.626],[54.4124,-0.6254],[54.4171,-0.6216],[54.4166,-0.6192],[54.418,-0.6186],[54.4164,-0.612],[54.4225,-0.6075],[54.4234,-0.6034],[54.4263,-0.5966],[54.4283,-0.5897],[54.429,-0.5867],[54.433,-0.5815],[54.4352,-0.5806],[54.4391,-0.5822],[54.4406,-0.5853],[54.4414,-0.5867],[54.444,-0.5884],[54.4465,-0.5896],[54.4468,-0.5885],[54.4499,-0.5826],[54.4515,-0.581],[54.4525,-0.574],[54.4532,-0.5727],[54.4538,-0.5695],[54.4547,-0.5647],[54.4568,-0.5602],[54.4581,-0.5592],[54.4583,-0.5561],[54.4582,-0.5549],[54.4596,-0.5507],[54.461,-0.5483],[54.4595,-0.5457],[54.457,-0.5404],[54.4547,-0.5388],[54.4539,-0.5374],[54.4525,-0.5358],[54.4503,-0.5329],[54.4499,-0.5319],[54.4496,-0.5301],[54.4496,-0.528],[54.4481,-0.5261],[54.4463,-0.5216],[54.4442,-0.5218],[54.4422,-0.5222],[54.4405,-0.5243],[54.4398,-0.5252],[54.4389,-0.5275],[54.4384,-0.5287],[54.4373,-0.5317],[54.4368,-0.5337],[54.4359,-0.5355],[54.435,-0.5357],[54.4329,-0.5342],[54.4329,-0.5342]]}};
+
+function legFeat(legs, st) {
+  const out = [], seen = new Set();
+  legs.forEach(l => {
+    const d = days[l.i];
+    if (l.mv === "walk" && d.line) {
+      if (seen.has(l.i)) return;
+      seen.add(l.i);
+      out.push({type: "Feature", properties: {st: st(l), mv: "walk"}, geometry: {type: "LineString", coordinates: d.line.map(p => [p[1], p[0]])}});
+      return;
+    }
+    out.push({type: "Feature", properties: {st: st(l), mv: l.mv}, geometry: {type: "LineString", coordinates: [[RLOC[l.a][1], RLOC[l.a][0]], [RLOC[l.b][1], RLOC[l.b][0]]]}});
+  });
+  return out;
+}
+
+function photosFor(id) { return (PH[id] || []).map(p => ({...p, l2: p.l})); }
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const gimg = x => "https://www.google.com/search?tbm=isch&q=" + encodeURIComponent(x.ph[0].l2 + " Coast to Coast");
+const phBtn = (x, j, kind) => { const p = x.ph[j]; return `<button class="ph ph-${kind}" type="button" data-ph="${x.d},${j}" aria-label="放大照片：${esc(p.l2)}"><img src="${p.u}" alt="${esc(p.l2)}" loading="lazy" decoding="async">${kind === "lead" && x.ph.length > 1 ? `<span>+${x.ph.length - 1}</span>` : ""}</button>`; };
+let lb = {d: 0, j: 0};
+function lbShow(d, j) {
+  const x = days[d], n = x.ph.length, k = ((j % n) + n) % n, p = x.ph[k];
+  lb = {d, j: k};
+  $("#lbimg").src = p.u; $("#lbimg").alt = p.l2;
+  $("#lbcap").innerHTML = `<b>${esc(p.l2)}</b>（${k + 1} / ${n}）<small>攝影：${esc(p.a)} · ${esc(p.c)} · <a href="${p.p}" target="_blank" rel="noopener">Wikimedia Commons</a> · <a href="${gimg(x)}" target="_blank" rel="noopener">更多照片（Google 圖片）</a></small>`;
+  $("#lbprev").hidden = $("#lbnext").hidden = n < 2;
+  $("#lb").hidden = false;
+}
+
+
+let cur = 17, active = 1, days = [];
 try { const s = +localStorage.getItem("c2c-plan"); if (PLANS[s]) cur = s; } catch (e) {}
+const ZH = n => `${n.getMonth() + 1}/${n.getDate()}（${WD[n.getDay()]}）`;
+const EN = n => n.toLocaleDateString("en-GB", {day: "numeric", month: "long", year: "numeric"});
+let fpMode = "day";
+try { fpMode = localStorage.getItem("c2c-fp") === "all" ? "all" : "day"; } catch (e) {}
+
+const hm = m => { m = Math.round(m / 5) * 5; return String(Math.floor(m / 60) % 24).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0"); };
+
+// 步行時間估算：每 km 15 分（4 km/h）、每上升 100 m 加 10 分、每下降 300 m 加 10 分，再加 12% 休息；午餐另加 30 分。
+// 這是紙上估算，不是實測，體能與路況不同要自己調整
+function schedule(x) {
+  const w = x.wp, cum = [0];
+  for (let i = 1; i < w.length; i++) {
+    const dk = w[i][1] - w[i - 1][1], da = w[i][2] - w[i - 1][2];
+    cum.push(cum[i - 1] + dk * 13 + Math.max(0, da) / 100 * 10 + Math.max(0, -da) / 300 * 10);
+  }
+  const k = 1.1, W = cum[cum.length - 1] * k, H = (W + 30) / 60;
+  const dep = H > 8 ? 480 : 510;
+  let li = w.findIndex((p, i) => i > 0 && i < w.length - 1 && cum[i] >= cum[cum.length - 1] * .45);
+  if (li < 0) li = Math.floor(w.length / 2);
+  const eta = cum.map((c, i) => dep + c * k + (i > li ? 30 : 0));
+  const arr = eta[eta.length - 1];
+  const hrs = Math.round(W / 30) / 2;
+  const rows = [
+    [hm(dep - 90), "起床、收行李；前一晚就請房東準備便當，並確認行李轉運的交件時間"],
+    [hm(dep - 60), "早餐"],
+    [hm(dep), `出發：${w[0][0]} → ${w[w.length - 1][0]}（${x.st[0]} km，↑${num(x.st[1])} ↓${num(x.st[2])} m）`, 1]
+  ];
+  for (let i = 1; i < w.length - 1; i++) {
+    rows.push([hm(eta[i]), w[i][0] + (w[i][3] ? "：" + w[i][3] : ""), w[i][4]]);
+    if (i === li) rows.push([hm(eta[i]), `午餐休息 30 分（${x.lunch || "便當，或路上的酒館／咖啡館"}）`]);
+  }
+  rows.push([hm(arr), `抵達 ${x.sleep}`, 1]);
+  rows.push([hm(arr + 60), "洗澡、晾衣、補水，檢查腳"]);
+  rows.push(["19:00", "晚餐（先訂位；酒館廚房常在 20:30~21:00 前後停點餐，未查證）"]);
+  return {eta, arr, rows, time: `步行約 ${hrs} 小時，含午餐與休息約 ${Math.round((W + 30) / 30) / 2} 小時`, dep, late: arr > 1050};
+}
 
 function build(n) {
   const ids = PLANS[n].ids, N = ids.length;
   return ids.map((id, i) => {
-    const dt = new Date(END[0], END[1], END[2] - (N - 1) + i);
-    return {...DEF[id], d: i, date: `${dt.getMonth() + 1}/${dt.getDate()} ${WD[dt.getDay()]}`, y: dt.getFullYear(), m: dt.getMonth() + 1};
+    const e = PLANS[n].end, dt = new Date(2027, e[0] - 1, e[1] - (N - 1) + i);
+    const d = {...DEF[id], ...(MANUAL_STEPS[id] || {}), ...(NOTES[id] || {}), id, ph: photosFor(id), d: i, dt, date: `${dt.getMonth() + 1}/${dt.getDate()} ${WD[dt.getDay()]}`};
+    if (GEO[id]) Object.assign(d, GEO[id]);
+    if (d.wp) { const sc = schedule(d); d.s = sc.rows; d.time = sc.time; d.eta = sc.eta; d.arrMin = sc.arr; d.late = sc.late; }
+    return d;
   });
 }
-const num = n => n.toLocaleString();
+const title = x => x.fly ? (x.d === 0 ? "搭機 台北 → 曼徹斯特" : "曼徹斯特 → 台北") : x.t;
+const desc = x => x.fly ? (x.d === 0 ? "台北到曼徹斯特沒有直飛，需轉機一次（班次要查）；夜機隔天上午到。" : "從曼徹斯特機場搭機回台，隔天抵達。") : x.r;
+const range = n => { const d = build(n); return `${d[0].date.split(" ")[0]} 出發 → ${d[d.length - 1].date.split(" ")[0]} 回台`; };
+const timeLabel = x => x.time;
+const stText = x => x.st ? `${x.est ? "約 " : ""}${x.st[0]} km · ↑${num(x.st[1])} ↓${num(x.st[2])} m` : "";
 
-function render() {
-  const days = build(cur), P = PLANS[cur];
+// 單日高度點：有 wp 就用路徑點的標高，沒有就只畫起訖
+function dayPts(x) {
+  const prev = days[x.d - 1], s = prev && prev.alt !== undefined ? prev.alt : 0, e = x.alt;
+  if (x.prof) {
+    const n = x.prof.length, k = Math.min(12, n), pts = [{alt: s}];
+    if (x.prof[0][1] !== s) pts.push({alt: x.prof[0][1], mode: "bus"});
+    for (let i = 1; i < k; i++) pts.push({alt: x.prof[Math.round(i * (n - 1) / (k - 1))][1], mode: "walk"});
+    if (x.prof[n - 1][1] !== e) pts.push({alt: e, mode: "bus"});
+    return pts;
+  }
+  if (x.wp) {
+    const pts = [{alt: s}];
+    if (x.wp[0][2] !== s) pts.push({alt: x.wp[0][2], mode: "bus"});
+    x.wp.slice(1).forEach(p => pts.push({alt: p[2], mode: "walk"}));
+    if (x.wp[x.wp.length - 1][2] !== e) pts.push({alt: e, mode: "bus"});
+    return pts;
+  }
+  if (x.rest) return [{alt: s}, {alt: e, mode: "walk"}];
+  return [{alt: s}, {alt: e, mode: "bus"}];
+}
+
+// 單日剖面：橫軸是當天的累計距離，縱軸是標高；點旁標預計到達時間
+// 兩種剖面（當天、整趟）共用同一個高度，切換或換天時置頂區不會忽高忽低，頁面就不會跳
+const FPH = () => (document.getElementById("fp").clientWidth || 600) < 520 ? 160 : 190;
+function drawDay(x) {
+  const box = $("#fp"), wp = x.wp, tot = wp[wp.length - 1][1];
+  const W = box.clientWidth || 600, mob = W < 520, L = mob ? 56 : 80, R = 14, T = 18, PH = mob ? 56 : 76, LAB = mob ? 84 : 96, H = T + PH + LAB;
+  const alts = (x.prof || wp.map(p => [0, p[2]])).map(p => p[1]);
+  const lo = Math.max(0, Math.floor((Math.min(...alts) - 30) / 50) * 50), hi = Math.ceil((Math.max(...alts) + 30) / 50) * 50;
+  const X = k => L + (W - L - R) * k / tot, Y = a => T + (1 - (a - lo) / (hi - lo)) * PH;
+  const step = hi - lo > 500 ? 250 : hi - lo > 250 ? 100 : 50;
+  let grid = "";
+  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) grid += `<line class="fp-base" x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/><text class="fp-t" x="${L - 5}" y="${Y(v) + 3}" text-anchor="end">${num(v)}</text>`;
+  const line = (x.prof || wp.map(p => [p[1], p[2]])).map(p => `${X(p[0])},${Y(p[1])}`).join(" ");
+  const area = `${X(0)},${Y(lo)} ${line} ${X(tot)},${Y(lo)}`;
+  const dots = wp.map((p, i) => {
+    const cx = X(p[1]), cy = Y(p[2]), hot = p[4] || i === 0 || i === wp.length - 1;
+    const name = p[0].length > 14 ? p[0].slice(0, 13) + "…" : p[0];
+    const lab = (mob && !hot) ? "" : `<text class="fp-n ${hot ? "now" : "fut"}" transform="rotate(-45 ${cx} ${T + PH + 10})" x="${cx}" y="${T + PH + 10}" text-anchor="end">${hm(x.eta[i])} ${name}</text>`;
+    return `<circle class="fp-d ${hot ? "now" : "past"}" cx="${cx}" cy="${cy}" r="${hot ? 4.5 : 3}"/>${hot ? `<text class="fp-t" x="${cx}" y="${cy - 8}" text-anchor="middle">${p[2]}</text>` : ""}${lab}`;
+  }).join("");
+  fpSpans = [];
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="當天高度剖面，橫軸是累計距離 ${tot} km，縱軸是標高"><polygon class="fp-area" points="${area}"/>${grid}<polyline class="fp-l now" fill="none" points="${line}"/>${dots}<text class="fp-t" x="${W - R}" y="${H - 2}" text-anchor="end">${tot} km</text></svg>`;
+  box.style.height = FPH() + "px";
+}
+function drawFP() {
+  const x = days[active];
+  if (fpMode === "day" && x && x.wp) drawDay(x); else drawAll();
+  document.getElementById("fp").style.height = FPH() + "px";
+}
+document.addEventListener("click", e => {
+  if (!e.target.closest("#fpm")) return;
+  fpMode = fpMode === "day" ? "all" : "day";
+  try { localStorage.setItem("c2c-fp", fpMode); } catch (err) {}
+  paint();
+});
+
+function renderStatic() {
+  const P = PLANS[cur];
   const beds = days.filter(x => !x.fly);
   const walks = days.filter(x => x.st);
   const sum = k => walks.reduce((a, x) => a + x.st[k], 0);
 
   document.querySelectorAll(".plan").forEach(b => b.setAttribute("aria-pressed", +b.dataset.n === cur));
-  $("#eyebrow").textContent = `Wainwright's Coast to Coast · England · ${days[0].y} / ${String(days[0].m).padStart(2, "0")}`;
-  $("#lede").textContent = `兩個人從 St Bees 走到 Robin Hood's Bay，橫越湖區、約克郡谷地和 North York Moors。目前是 ${P.name}方案：${P.desc}`;
+  $("#eyebrow").textContent = `Wainwright's Coast to Coast · England · ${days[0].dt.getFullYear()} / ${String(days[0].dt.getMonth() + 1).padStart(2, "0")}`;
+  $("#lede").textContent = `兩個人從 St Bees 走到 Robin Hood's Bay，橫越湖區、約克郡谷地和 North York Moors。目前是 ${P.name}方案（${P.tag}），${range(cur)}。`;
+  $("#plandetail").innerHTML = `<div class="box"><h3>${P.name}方案的特色</h3><ul>${P.pros.map(t => `<li>${t}</li>`).join("")}</ul></div><div class="box"><h3>缺點</h3><ul>${P.cons.map(t => `<li>${t}</li>`).join("")}</ul></div>`;
   $("#stats").innerHTML = [
-    [days.length + " 天", "含來回機程"], [beds.length + " 晚", "地面住宿"], [walks.length + " 天", "實際健行"],
-    ["約 " + Math.round(sum(0)) + " km", "總距離"], ["約 " + num(sum(1)) + " m", "總上升"], ["約 " + num(sum(2)) + " m", "總下降"],
-    ["約 780 m", "最高點 Kidsty Pike"]].map(([b, s]) => `<div><b>${b}</b><span>${s}</span></div>`).join("");
-  $("#daynote").textContent = `時間是一般步行時間，不含休息。距離與爬升為估計值。分段、住宿和巴士時刻每年不同，出發前請對照當年路書和各住宿。`;
-  $("#cash").textContent = `B&B 雙人房含早餐每晚約 £90~140，${beds.length} 晚約 £${num(beds.length * 90)}~${num(beds.length * 140)}，估計值，不含午晚餐。`;
+    [days.length + " 天", "含來回機程"], [beds.length + " 晚", "住在英國"], [walks.length + " 天", "有步行的天數"],
+    ["約 " + Math.round(sum(0)) + " km", "步行總距離"], ["約 " + num(sum(1)) + " m", "步行總上升"], ["約 " + num(sum(2)) + " m", "步行總下降"],
+    ["約 " + num(Math.round((sum(1) + sum(2)) / walks.length / 10) * 10) + " m", "平均每個步行日 上升＋下降"], ["約 " + Math.round(sum(0) / walks.length) + " km", "平均每個步行日"]].map(([b, s]) => `<div><b>${b}</b><span>${s}</span></div>`).join("");
+  $("#daynote").textContent = "點任何一天，上方的示意地圖與剖面會跟著換。每個步行日的時間表是我用距離與爬升估的：每 km 13 分，每上升 100 m 加 10 分，每下降 300 m 加 10 分，再加 10% 休息與 30 分午餐，不是實測，要自己依體能調整。距離與爬升為估計值，英國日落晚，但仍建議 17:30 前到住宿。";
 
-  $("#days").innerHTML = days.map(x => `
-    <li class="day${x.fly ? " fly" : ""}${x.rest ? " rest" : ""}">
-      <div class="tag"><b>D${x.d}</b><span>${x.date}</span></div>
+  $("#days").innerHTML = days.map(x => {
+    const s = x.fly ? null : sunInfo(x.dt, x.loc);
+    return `
+    <li class="day${x.fly ? " fly" : ""}${x.rest ? " rest" : ""}${x.ph.length ? " has-ph" : ""}" data-i="${x.d}" tabindex="0">
+      <div class="tag">
+        <b class="dn">D${x.d}</b><span class="dd">${x.date}</span>
+        <div class="dalt">${x.alt ? `<b>${num(x.alt)}</b>公尺` : x.fly ? "<b>—</b>飛行" : "<b>0</b>公尺"}</div>
+        ${s ? `<div class="dsun">日出 ${s.rise}<br>日落 ${s.set}</div>` : ""}
+      </div>
       <div class="body">
-        <h3>${x.fly ? (x.d === 0 ? "搭夜機 台北 → 英國" : "英國 → 台北") : x.t}</h3>
-        <p>${x.fly ? (x.d === 0 ? "需轉機一次。" : "回程班機，隔天抵達。") : x.r}</p>
+        <h3 class="dt">${title(x)}</h3>
+        <p class="ddesc">${desc(x)}</p>
+        ${x.s ? `<ul class="tl">${x.s.map(r => `<li${r[2] ? ' class="hot"' : ""}><span class="hh">${r[0]}</span><span class="ww">${r[1]}</span></li>`).join("")}</ul>` : ""}
+        ${x.late ? `<div class="note warn"><b>預計 ${hm(x.arrMin)} 才到。</b>建議提早 30 分出發，或縮短午餐；也可以先打電話告訴住宿你會晚到。</div>` : ""}
+        ${(x.n || []).map(t => `<div class="note">${t}</div>`).join("")}
+        ${x.w ? `<div class="note warn">${x.w}</div>` : ""}
+        ${x.a ? `<div class="note">${x.a}</div>` : ""}
         <div class="meta">
-          ${x.time ? `<span>${x.time}</span>` : ""}
-          ${x.st ? `<span>${x.est ? "約 " : ""}${x.st[0]} km · ↑${num(x.st[1])} ↓${num(x.st[2])} m</span>` : ""}
+          ${x.time ? `<span>${timeLabel(x)}</span>` : ""}
+          ${x.st ? `<span>${stText(x)}</span>` : ""}
           ${x.lv ? `<span class="pill lv-${x.lv}">${LV[x.lv]}</span>` : ""}
           ${x.tag ? `<span class="pill lv-3">${x.tag}</span>` : ""}
-          <span class="bed">住：${x.sleep}${x.alt ? ` · 約 ${num(x.alt)} m` : ""}</span>
         </div>
+        ${x.ph.length ? `<div class="ph-strip">${x.ph.map((p, j) => phBtn(x, j, "strip")).join("")}<a class="ph-more" href="${gimg(x)}" target="_blank" rel="noopener">更多照片（Google 圖片）</a></div>` : ""}
+        ${x.fly ? "" : `<p class="stay"><b>住</b>　${x.sleep}${x.alt ? ` · 約 ${num(x.alt)} m` : ""}</p>`}
       </div>
-    </li>`).join("");
+    </li>`;
+  }).join("");
 
-  chart(days);
-  checklist(beds);
+  booking();
+  extras(beds);
 }
 
-function chart(days) {
+// 不能錯過的班次與費用估算（兩人，區間是我的估計）
+function extras(beds) {
+  const ids = new Set(days.map(x => x.id));
+  const miss = [
+    ["曼徹斯特 → Carlisle → St Bees", "Carlisle → St Bees 是直達車，約 1 小時 20 分，約每小時一班、週日更少（第三方網站資料）。班機太晚到就在 Carlisle 過夜。"],
+    ["Clay Bank 接送（D" + days.findIndex(x => x.id === "s12") + "、D" + days.findIndex(x => x.id === "s13") + "）", "Clay Bank 沒有住宿與公共交通，接送要和民宿先約好時間，前一天晚上再確認。"],
+    ["行李轉運的交件時間", "多數轉運公司要求早上固定時間前把行李放在前台，沒趕上就要自己背整天，訂時一起問。"],
+    ["回程：Robin Hood's Bay → Whitby → York → 曼徹斯特", "X93 約每小時一班（季節性）；Whitby → York 的 840 Coastliner 在 2022 年約兩小時一班，要查現況。接不上就多住一晚。"]
+  ];
+  $("#missable").innerHTML = `<b>不能錯過的班次</b><ol>${miss.map(([t, s]) => `<li><b>${t}</b>：${s}</li>`).join("")}</ol>`;
+
+  const nights = beds.length, walkN = days.filter(x => x.st).length;
+  const rows = [
+    ["住宿（B&B 雙人房含早餐）", nights * 90, nights * 140, `${nights} 晚，每晚約 £90~140，是我的估計，旺季與熱門村更貴。`],
+    ["行李轉運（兩件）", walkN * 2 * 10, walkN * 2 * 15, `${walkN} 個步行日，每件每天約 £10~15，是估計。若自己背就省下。`],
+    ["晚餐（酒館）", (nights - 1) * 2 * 18, (nights - 1) * 2 * 30, "每人每晚約 £18~30，是估計。"],
+    ["午餐便當與零食", walkN * 2 * 8, walkN * 2 * 14, `${walkN} 個步行日，每人每天約 £8~14，是估計。`],
+    ["曼徹斯特 → Carlisle → St Bees（抵達）", 2 * 35, 2 * 70, "火車，一人約 £35~70，是我的估計。"],
+    ["Robin Hood's Bay → Whitby → York → 曼徹斯特（回程）", 2 * 45, 2 * 80, "巴士加火車，一人約 £45~80，是我的估計。"],
+    ["Clay Bank 接送", 0, 40, "民宿接送可能免費或收費，是估計。"],
+    ["門票與雜費", 2 * 10, 2 * 30, "城堡、修道院、咖啡館與紀念品，是估計。"]
+  ];
+  const lo = rows.reduce((a, r) => a + r[1], 0), hi = rows.reduce((a, r) => a + r[2], 0);
+  $("#costs").innerHTML = rows.map(([t, a, b, s]) => `<tr><td>${t}</td><td>${num(a)}${a === b ? "" : "~" + num(b)}</td><td><small>${s}</small></td></tr>`).join("") +
+    `<tr class="cost-total"><td>合計</td><td>${num(lo)}~${num(hi)}</td><td><small>約 NT$ ${num(Math.round(lo * 40 / 1000) * 1000)}~${num(Math.round(hi * 40 / 1000) * 1000)}（以 £1 ≈ NT$40 概算）</small></td></tr>`;
+  $("#costnote").textContent = "單位是英鎊，不含機票、旅平險與裝備。價格都是我憑一般行情估的，沒有逐項查證，只能當預算參考。";
+}
+
+function group() {
+  const rows = [];
+  days.forEach((x, i) => {
+    if (x.fly) return;
+    const last = rows[rows.length - 1];
+    if (last && last.name === x.sleep && last.end === i - 1) { last.nights++; last.end = i; }
+    else rows.push({name: x.sleep, dt: x.dt, nights: 1, end: i});
+  });
+  return rows;
+}
+
+function mailText(r) {
+  return `Dear ${r.name},
+
+We are two walkers from Taiwan walking the Coast to Coast in June 2027. We would like to book ${r.nights} night${r.nights > 1 ? "s" : ""} starting from ${EN(r.dt)}.
+
+- 2 persons, one double or twin room (or two singles)
+- Breakfast included; we would also like a packed lunch for the next morning
+- Expected arrival: around 16:00-17:30
+
+Could you please let us know:
+1) whether you have a room available on these dates,
+2) the price per room per night, deposit and cancellation terms,
+3) whether you can take our luggage onward, or help with luggage transfer,
+4) whether you can arrange an evening meal or recommend a pub nearby.
+
+Thank you very much.
+Best regards,
+[Your name]`;
+}
+
+function booking() {
+  const rows = group();
+  const link = (u, t) => `<a href="${u}" target="_blank" rel="noopener">${t}</a>`;
+  $("#huts").innerHTML = rows.map(r => {
+    const H = STAY[r.name] || {pri: 2};
+    return `<tr><td><b>${r.name}</b></td><td>${ZH(r.dt)}<small>${r.nights} 晚</small></td>
+      <td><span class="pri pri-${H.pri}">${PRI[H.pri]}</span></td><td><small>${WHEN[H.pri]}</small></td>
+      <td>${link("https://www.google.com/search?q=" + encodeURIComponent((H.q || r.name) + " booking"), "搜尋")}</td><td><small>${H.note || ""}</small></td>
+      <td><button class="btn" data-mail="${days.findIndex(d => d.dt === r.dt && d.sleep === r.name)}" data-n="${r.nights}">複製訂房信</button></td></tr>`;
+  }).join("");
+  window.__rows = rows;
+  const top = rows.filter(r => (STAY[r.name] || {}).pri === 3).map(r => `${r.name}（${ZH(r.dt)}）`);
+  $("#bookhint").innerHTML = `<b>什麼時候要訂：這條路的住宿很少，旺季要提早</b><ul>
+    <li><b>最先訂</b>：${top.join("、")}。有的村子只有一兩間，訂不到整條路線都要重排。</li>
+    <li>其他住宿約出發前 6~8 個月，鎮上與機場旅館 3~6 個月；選可免費取消的。</li>
+    <li>我沒查到各住宿官方的開放預約時間，以上是依一般經驗抓的。<a href="#book">看完整時間表與每晚怎麼訂 ↓</a></li></ul>`;
+
+  const first = days[1].dt;
+  $("#timeline").innerHTML = [
+    ["現在", "選好天數與出發日，列出每晚要住的村子。確認每個村子有哪些住宿、能不能接受一晚的預訂（有些要求連住兩晚）。"],
+    ["出發前 8~10 個月", "先訂最難訂的村子：Keld、Danby Wiske、Rosthwaite、Patterdale、Lion Inn、Clay Bank 附近的接送民宿。"],
+    ["出發前 6~8 個月", "訂其餘住宿與行李轉運，訂機票。選可免費取消的方案。"],
+    ["出發前 3~4 個月", "確認訂金與取消條款，存下書面確認。買好含健行與搜救的旅平險，申請英國 ETA。"],
+    ["出發前 1~2 個月", "查 St Bees、Whitby 的火車與巴士時刻，這些班次少。預約 Clay Bank 接送。"],
+    [`出發前 2 週（${first.getMonth() + 1} 月前後）`, "逐間用 email 再確認入住日，告知預計到達時間與人數。把確認信存在手機離線可看。"],
+    ["出發前 1 週", "看天氣預報、步道公告。把所有確認信、地圖與電話存離線。"]
+  ].map(([t, s]) => `<li><b>${t}</b><span>${s}</span></li>`).join("");
+}
+
+const ASK = ["我們住的那幾晚有沒有房，兩人雙人房或兩張單人床", "每晚價格、含不含早餐，訂金與取消改期規定",
+  "能不能提供前一晚訂的午餐便當（packed lunch），價格", "晚餐能不能代訂，或附近哪裡吃（村子小，酒館廚房會關）",
+  "有沒有行李轉運的合作公司，或能不能幫忙收行李", "最晚入住時間，遲到怎麼通知", "能不能晾衣服、有沒有烘乾空間",
+  "要不要連住兩晚才接受預訂", "拿到書面確認（email 截圖），存在手機離線", "訂房名字和護照姓名一致", "如果要取消或晚到，一定要通知住宿"];
+const BASE = ["機票與英國來回交通", "英國 ETA 電子旅行許可（台灣護照需事先申請，出發前到官方網站確認）", "旅平險含健行與山區救援", "行李轉運預約（Sherpa Van、Packhorse 等）",
+  "英鎊現金與可用的信用卡", "防水外套與雨褲", "防水背包套與內袋", "已磨合的防水登山鞋與備用襪", "登山杖", "OS 地圖或離線地圖 App，加路書", "行動電源與英規 G 型轉接頭", "護照與保險資料紙本"];
+let saved = {};
+try { saved = JSON.parse(localStorage.getItem("c2c-check") || "{}"); } catch (e) {}
+const checks = (el, items) => { el.innerHTML = items.map(t => `<li><label><input type="checkbox"${saved[t] ? " checked" : ""} data-k="${t.replace(/"/g, "&quot;")}"><span>${t}</span></label></li>`).join(""); };
+function lists() {
+  const names = [...new Set(days.filter(x => !x.fly).map(x => x.sleep))];
+  checks($("#askcheck"), ASK);
+  checks($("#check"), [`訂好 ${names.length} 處住宿：${names.join("、")}`, ...BASE]);
+}
+document.addEventListener("change", e => {
+  const k = e.target.dataset && e.target.dataset.k;
+  if (!k) return;
+  saved[k] = e.target.checked;
+  try { localStorage.setItem("c2c-check", JSON.stringify(saved)); } catch (err) {}
+});
+
+
+// 整趟剖面：今天走的紅色、走過的灰色、還沒走的淡色；虛線是搭車
+let fpSpans = [];
+function drawAll() {
+  const box = $("#fp");
+  if (!box) return;
+  const W = box.clientWidth || 600, mob = W < 520, L = mob ? 30 : 36, R = 8, T = 6, PH = mob ? 40 : 54, LAB = mob ? 16 : 50, H = T + PH + LAB;
+  const real = days.filter(x => !x.fly);
+  const wt = x => x.rest ? .35 : x.st ? .7 + x.st[0] / 10 : .7;
+  const total = real.reduce((a, x) => a + wt(x), 0);
+  const hi = 800;
+  const Y = a => T + (1 - a / hi) * PH;
+  const grid = [0, 250, 500, 750].filter(v => v <= hi).map(v => `<line class="fp-base" x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/><text class="fp-t" x="${L - 5}" y="${Y(v) + 3}" text-anchor="end">${num(v)}</text>`).join("");
+  let cum = 0;
+  const lines = [], names = [], dots = [];
+  let band = "";
+  fpSpans = [];
+  real.forEach(x => {
+    const x0 = L + (W - L - R) * cum / total; cum += wt(x);
+    const x1 = L + (W - L - R) * cum / total, pts = dayPts(x), st = x.d < active ? "past" : x.d === active ? "now" : "fut";
+    fpSpans.push({d: x.d, x0, x1});
+    pts.slice(1).forEach((p, i) => {
+      const xa = x0 + (x1 - x0) * i / (pts.length - 1), xb = x0 + (x1 - x0) * (i + 1) / (pts.length - 1);
+      lines.push({st, s: `<line class="fp-l ${st}${p.mode === "bus" ? " bus" : ""}" x1="${xa}" y1="${Y(pts[i].alt)}" x2="${xb}" y2="${Y(p.alt)}"/>`});
+    });
+    dots.push(`<circle class="fp-d ${st}" cx="${x1}" cy="${Y(x.alt)}" r="${st === "now" ? 5 : 3}"/>`);
+    if (!x.rest && !mob) names.push(`<text class="fp-n ${st}" transform="rotate(-55 ${x1} ${T + PH + 8})" x="${x1}" y="${T + PH + 8}" text-anchor="end">${SHORT[x.loc]}</text>`);
+    if (mob && st === "now") names.push(`<text class="fp-n now" x="${Math.max(L + 28, Math.min(W - R - 28, x1))}" y="${T + PH + 12}" text-anchor="middle">D${x.d} ${SHORT[x.loc]}</text>`);
+    if (st === "now") band = `<rect class="fp-band" x="${x0}" y="${T - 4}" width="${x1 - x0}" height="${PH + 8}"/>`;
+  });
+  const order = {fut: 0, past: 1, now: 2};
+  lines.sort((a, b) => order[a.st] - order[b.st]);
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="整趟高度剖面，可點擊跳到該天">${grid}${band}${lines.map(l => l.s).join("")}${dots.join("")}${names.join("")}</svg>`;
+}
+
+
+// 日出日落（NOAA 公式，平地算法，山體會擋掉一部分）與月相（概算，可能差一天）
+function sunInfo(dt, loc) {
+  const p = RLOC[loc];
+  if (!p) return null;
+  const rad = Math.PI / 180, lat = p[0], lon = p[1];
+  const jd = Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate(), 12) / 864e5 + 2440587.5;
+  const n = Math.ceil(jd - 2451545.0 + 0.0008), Js = n - lon / 360;
+  const M = (357.5291 + 0.98560028 * Js) % 360, Mr = M * rad;
+  const C = 1.9148 * Math.sin(Mr) + 0.02 * Math.sin(2 * Mr) + 0.0003 * Math.sin(3 * Mr);
+  const lr = ((M + C + 180 + 102.9372) % 360) * rad;
+  const Jt = 2451545.0 + Js + 0.0053 * Math.sin(Mr) - 0.0069 * Math.sin(2 * lr);
+  const dec = Math.asin(Math.sin(lr) * Math.sin(23.4397 * rad));
+  const cw = (Math.sin(-0.833 * rad) - Math.sin(lat * rad) * Math.sin(dec)) / (Math.cos(lat * rad) * Math.cos(dec));
+  if (Math.abs(cw) > 1) return null;
+  const w = Math.acos(cw) / rad / 360;
+  const fmt = J => new Date((J - 2440587.5) * 864e5).toLocaleTimeString("en-GB", {timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", hour12: false});
+  return {rise: fmt(Jt - w), set: fmt(Jt + w)};
+}
+const moonPct = dt => {
+  const jd = Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate(), 20) / 864e5 + 2440587.5;
+  const ph = (((jd - 2451550.1) / 29.530588853) % 1 + 1) % 1;
+  return Math.round((1 - Math.cos(2 * Math.PI * ph)) / 2 * 100);
+};
+
+
+// ---- 地圖 ----
+const MAP_W = 400, MAP_H = 520, ASPECT = MAP_W / MAP_H;
+let mapMode = "follow", compact = false, vbNow = [0, 0, MAP_W, MAP_H], raf = 0;
+try { mapMode = localStorage.getItem("c2c-map") === "all" ? "all" : "follow"; compact = localStorage.getItem("c2c-compact") === "1"; } catch (e) {}
+
+// 今天移動的範圍 → 地圖鏡頭。跟隨模式只平移縮放，不旋轉，過場 0.55 秒。
+function targetVB() {
+  if (mapMode === "all") return [0, 0, MAP_W, MAP_H];
+  const x = days[active], ids = [days[active - 1] ? days[active - 1].loc : x.loc, x.via, x.loc].filter(Boolean);
+  const P = ids.map(id => LOC[id]), xs = P.map(p => p[0]), ys = P.map(p => p[1]);
+  let bw = Math.max(Math.max(...xs) - Math.min(...xs) + 90, 150), bh = Math.max(Math.max(...ys) - Math.min(...ys) + 90, 150 / ASPECT);
+  if (bw / bh > ASPECT) bh = bw / ASPECT; else bw = bh * ASPECT;
+  if (bw >= MAP_W) return [0, 0, MAP_W, MAP_H];
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+  return [Math.max(0, Math.min(MAP_W - bw, cx - bw / 2)), Math.max(0, Math.min(MAP_H - bh, cy - bh / 2)), bw, bh];
+}
+
+function mapSVG(vb, pxW) {
+  const k = pxW / vb[2], u = px => px / k;     // px → 畫布單位，字和點的視覺大小固定
+  const legs = [];
+  days.forEach((x, i) => {
+    if (i === 0) return;
+    const from = days[i - 1].loc, pts = x.via ? [from, x.via, x.loc] : [from, x.loc];
+    if (x.line) legs.push({line: x.line.map(p => PROJ(p).join(',')).join(' L'), mv: 'walk', i});
+    for (let j = 0; j < pts.length - 1; j++) {
+      if (pts[j] === pts[j + 1] || (x.line && !(x.via && j === pts.length - 2))) continue;
+      legs.push({a: LOC[pts[j]], b: LOC[pts[j + 1]], mv: (x.via && j === pts.length - 2) ? "bus" : (x.mv || "walk"), i});
+    }
+  });
+  const st = l => l.i < active ? "done" : l.i === active ? "now" : "";
+  const order = l => l.i === active ? 2 : l.i < active ? 1 : 0;
+  const path = legs.slice().sort((p, q) => order(p) - order(q)).map(l => {
+    if (l.line) return `<path class="m-seg walk ${st(l)}" d="M${l.line}"/>`;
+    const [x1, y1] = l.a, [x2, y2] = l.b, mx = (x1 + x2) / 2 + (l.mv === "bus" ? (y2 - y1) * .12 : 0), my = (y1 + y2) / 2 - (l.mv === "bus" ? (x2 - x1) * .12 : 0);
+    return `<path class="m-seg ${l.mv} ${st(l)}" d="M${x1},${y1} Q${mx},${my} ${x2},${y2}"/>`;
+  }).join("");
+  const first = {}, used = new Set();
+  days.forEach((x, i) => [x.loc, x.via].forEach(id => { if (id) { used.add(id); if (first[id] === undefined) first[id] = i; } }));
+  const here = days[active].loc, prevLoc = days[active - 1] ? days[active - 1].loc : null, nextLoc = days[active + 1] ? days[active + 1].loc : null;
+  const fs = u(10.5), placed = [];
+  const prio = id => id === here ? 0 : id === prevLoc || id === days[active].via ? 1 : id === nextLoc ? 2 : first[id] <= active ? 3 : 4;
+  const hit = (a, b) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
+  const inView = (x, y) => x > vb[0] - 4 && x < vb[0] + vb[2] + 4 && y > vb[1] - 4 && y < vb[1] + vb[3] + 4;
+  const labels = {};
+  [...used].sort((a, b) => prio(a) - prio(b)).forEach(id => {
+    const [x, y, , side] = LOC[id], text = SHORT[id], w = text.length * fs * (/[一-鿿]/.test(text) ? 1 : .62), gap = u(9);
+    const r = side === "l" ? {x0: x - gap - w, x1: x - gap} : {x0: x + gap, x1: x + gap + w};
+    r.y0 = y - fs * .6; r.y1 = y + fs * .6;
+    if (!inView(x, y) || placed.some(p => hit(p, r))) return;
+    placed.push(r); labels[id] = true;
+  });
+  const dots = [...used].map(id => {
+    const [x, y, , side] = LOC[id], seen = first[id] <= active, now = id === here;
+    const tx = side === "l" ? x - u(9) : x + u(9), anchor = side === "l" ? "end" : "start";
+    return `<g data-loc="${id}" style="cursor:pointer">${now ? `<circle class="m-pulse" cx="${x}" cy="${y}" r="${u(9)}"/>` : ""}
+      <circle class="m-dot${now ? " now" : seen ? " seen" : ""}" cx="${x}" cy="${y}" r="${u(now ? 6.5 : 4.5)}"/>
+      ${labels[id] ? `<text class="m-lab${now ? " now" : seen ? " seen" : ""}" style="font-size:${fs}px" x="${tx}" y="${y + fs * .35}" text-anchor="${anchor}">${SHORT[id]}</text>` : ""}</g>`;
+  }).join("");
+  const zones = ZONES.map(([t, x, y]) => `<text class="m-zone" style="font-size:${u(8.5)}px" x="${x}" y="${y}">${t}</text>`).join("");
+  return `<svg viewBox="${vb.join(" ")}" role="img" aria-label="路線示意圖，點地名可跳到那天">${zones}${path}${dots}</svg>`;
+}
+
+function setMap() {
+  const box = $("#map"), tgt = targetVB();
+  box.innerHTML = mapSVG(tgt, box.clientWidth || 190);
+  const svg = box.firstElementChild;
+  cancelAnimationFrame(raf);
+  const from = vbNow.slice(), t0 = performance.now(), D = 550;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches || from.every((v, i) => Math.abs(v - tgt[i]) < .5)) { vbNow = tgt; return; }
+  svg.setAttribute("viewBox", from.join(" "));
+  const step = now => {
+    const t = Math.min(1, (now - t0) / D), e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    vbNow = from.map((v, i) => v + (tgt[i] - v) * e);
+    svg.setAttribute("viewBox", vbNow.join(" "));
+    if (t < 1) raf = requestAnimationFrame(step);
+  };
+  raf = requestAnimationFrame(step);
+}
+
+// 放大地圖：全覽、字夠大，點地名跳到那天
+function drawBig() {
+  const b = $("#bigmap");
+  let h = Math.min(innerHeight * .84, 980), w = h * ASPECT;
+  if (w > innerWidth * .92) { w = innerWidth * .92; h = w / ASPECT; }
+  b.style.width = w + "px"; b.style.height = h + "px";
+  b.innerHTML = mapSVG([0, 0, MAP_W, MAP_H], w);
+}
+let bigTab = "real", realView = "day";
+function bigOpen(on) { $("#modal").hidden = !on; if (on) { showBig(bigTab); $("#bigclose").focus(); } }
+function showBig(tab) {
+  if (tab === "real" && (typeof maplibregl === "undefined" || typeof mlcontour === "undefined")) tab = "sch";
+  bigTab = tab;
+  $("#realwrap").hidden = tab !== "real";
+  $("#bigmap").hidden = $("#schnote").hidden = tab !== "sch";
+  $("#tabReal").setAttribute("aria-pressed", tab === "real");
+  $("#tabSch").setAttribute("aria-pressed", tab === "sch");
+  ["viewAll", "viewDay", "gmap", "baseClean", "baseSat", "tgContour", "tgTrails"].forEach(id => { $("#" + id).hidden = tab !== "real"; });
+  document.querySelectorAll(".tabs .sep").forEach(s => { s.hidden = tab !== "real"; });
+  if (tab === "real") drawReal(); else drawBig();
+  const x = days[active];
+  $("#mDay").textContent = `D${x.d} · ${x.date} · ${title(x)}`;
+  $("#mPrev").disabled = active <= 0; $("#mNext").disabled = active >= days.length - 1;
+}
+
+
+const hav = (a, b) => {
+  const t = x => x * Math.PI / 180, dl = t(b[0] - a[0]), dn = t(b[1] - a[1]);
+  return 12742 * Math.asin(Math.sqrt(Math.sin(dl / 2) ** 2 + Math.cos(t(a[0])) * Math.cos(t(b[0])) * Math.sin(dn / 2) ** 2));
+};
+let rmap = null, rready = false, rmarkers = [], rbase = "clean", rtog = {contour: true, trails: false, labels: true};
+function realLegs() {
+  const legs = [];
+  days.forEach((x, i) => {
+    if (i === 0) return;
+    const r = RR[x.id], pts = [days[i - 1].loc, ...(r ? r[0] : []), x.loc];
+    for (let k = 0; k < pts.length - 1; k++) if (pts[k] !== pts[k + 1]) legs.push({a: pts[k], b: pts[k + 1], mv: r ? r[1][k] : (x.mv || "walk"), i});
+  });
+  return legs;
+}
+function initReal() {
+  const dem = new mlcontour.DemSource({url: "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png", encoding: "terrarium", maxzoom: 12, worker: true, cacheSize: 100, timeoutMs: 10000});
+  dem.setupMaplibre(maplibregl);
+  const ras = (tiles, attribution, maxzoom) => ({type: "raster", tiles, tileSize: 256, attribution, maxzoom});
+  const abc = (u) => ["a", "b", "c"].map(s => u.replace("{s}", s));
+  const leg = (id, st, mv, paint) => ({id, type: "line", source: "legs", filter: ["all", ["==", ["get", "st"], st], ["==", ["get", "mv"], mv]], layout: {"line-cap": "round"}, paint});
+  rmap = new maplibregl.Map({
+    container: "realmap", dragRotate: false, pitchWithRotate: false, touchPitch: false, attributionControl: {compact: true},
+    style: {version: 8, glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+      sources: {
+        carto: ras(["https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"], "Esri, HERE, Garmin, © OpenStreetMap 貢獻者", 16),
+        cartolab: ras(["https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}"], "Esri", 16),
+        topo: ras(abc("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"), "© OpenStreetMap 貢獻者, SRTM | © OpenTopoMap (CC-BY-SA)", 17),
+        osm: ras(["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], "© OpenStreetMap 貢獻者", 19),
+        sat: ras(["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], "Esri, Maxar, Earthstar Geographics", 18),
+        trails: ras(["https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png"], "© waymarkedtrails.org", 18),
+        dem: {type: "raster-dem", encoding: "terrarium", tiles: [dem.sharedDemProtocolUrl], maxzoom: 12, tileSize: 256},
+        contours: {type: "vector", maxzoom: 14, tiles: [dem.contourProtocolUrl({thresholds: {8: [200, 1000], 10: [100, 500], 12: [50, 200], 14: [20, 100]}, contourLayer: "contours", elevationKey: "ele", levelKey: "level"})]},
+        legs: {type: "geojson", data: {type: "FeatureCollection", features: []}}
+      },
+      layers: [
+        {id: "bg", type: "background", paint: {"background-color": "#f4f5f4"}},
+        {id: "b-clean", type: "raster", source: "carto"},
+        {id: "b-topo", type: "raster", source: "topo", layout: {visibility: "none"}},
+        {id: "b-osm", type: "raster", source: "osm", layout: {visibility: "none"}},
+        {id: "b-sat", type: "raster", source: "sat", layout: {visibility: "none"}},
+        {id: "hill", type: "hillshade", source: "dem", paint: {"hillshade-exaggeration": .45, "hillshade-shadow-color": "#5d6d70", "hillshade-highlight-color": "#ffffff", "hillshade-accent-color": "#8a979b"}},
+        {id: "trails", type: "raster", source: "trails", layout: {visibility: "none"}},
+        {id: "cont", type: "line", source: "contours", "source-layer": "contours", paint: {"line-color": "#8a6a3b", "line-opacity": .6, "line-width": ["match", ["get", "level"], 1, 1.3, .5]}},
+        {id: "contlab", type: "symbol", source: "contours", "source-layer": "contours", filter: [">", ["get", "level"], 0],
+          layout: {"symbol-placement": "line", "text-size": 10, "text-field": ["number-format", ["get", "ele"], {}], "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"]},
+          paint: {"text-color": "#6b4f26", "text-halo-color": "rgba(255,255,255,.85)", "text-halo-width": 1.2}},
+        {id: "cartolab", type: "raster", source: "cartolab", paint: {"raster-opacity": .85}},
+        leg("fut-walk", "fut", "walk", {"line-color": "#1c2a2e", "line-width": 2, "line-opacity": .5}),
+        leg("fut-bus", "fut", "bus", {"line-color": "#1c2a2e", "line-width": 2, "line-opacity": .5, "line-dasharray": [2, 2]}),
+        leg("done-walk", "done", "walk", {"line-color": "#8a979b", "line-width": 3}),
+        leg("done-bus", "done", "bus", {"line-color": "#8a979b", "line-width": 3, "line-dasharray": [2, 2]}),
+        leg("now-walk", "now", "walk", {"line-color": "#d63a30", "line-width": 6}),
+        leg("now-bus", "now", "bus", {"line-color": "#d63a30", "line-width": 4, "line-dasharray": [2, 2]})
+      ]}
+  });
+  rmap.addControl(new maplibregl.NavigationControl({showCompass: false}), "top-left");
+  rmap.addControl(new maplibregl.ScaleControl({maxWidth: 140, unit: "metric"}), "bottom-left");
+  rmap.on("load", () => { rready = true; updateReal(true); });
+}
+function realVis() {
+  const vis = (id, on) => rmap.setLayoutProperty(id, "visibility", on ? "visible" : "none");
+  vis("b-clean", rbase === "clean"); vis("b-topo", rbase === "topo"); vis("b-osm", rbase === "osm"); vis("b-sat", rbase === "sat");
+  vis("hill", rbase === "clean"); vis("cartolab", rbase === "clean" && rtog.labels);
+  vis("cont", rtog.contour); vis("contlab", rtog.contour); vis("trails", rtog.trails);
+  [["baseClean", "clean"], ["baseSat", "sat"]].forEach(([id, k]) => $("#" + id).setAttribute("aria-pressed", rbase === k));
+  [["tgContour", "contour"], ["tgTrails", "trails"]].forEach(([id, k]) => $("#" + id).setAttribute("aria-pressed", rtog[k]));
+}
+function updateReal(fit) {
+  if (!rready) return;
+  rmap.resize();
+  realVis();
+  const legs = realLegs(), used = new Set(), allPts = [], dayPts = [], dayLegs = [];
+  const st = l => l.i < active ? "done" : l.i === active ? "now" : "fut";
+  let walkKm = 0;
+  rmap.getSource("legs").setData({type: "FeatureCollection", features: legFeat(legs, st)});
+  legs.forEach(l => {
+    const A = RLOC[l.a], B = RLOC[l.b];
+    used.add(l.a); used.add(l.b); allPts.push(A, B);
+    if (l.i === active) { dayPts.push(A, B); dayLegs.push(l); if (l.mv === "walk") walkKm += hav(A, B); }
+  });
+  const x = days[active], here = x.loc;
+  days.forEach(d => { if (d.loc && RLOC[d.loc]) used.add(d.loc); });
+  rmarkers.forEach(m => m.remove()); rmarkers = [];
+  used.forEach(id => {
+    const el = document.createElement("div");
+    el.className = "rm" + (id === here ? " now" : "");
+    el.innerHTML = `<i></i><span>${RNAME[id] || id}</span>`;
+    el.addEventListener("click", ev => { ev.stopPropagation(); jumpLoc(id); });
+    rmarkers.push(new maplibregl.Marker({element: el, anchor: "center"}).setLngLat([RLOC[id][1], RLOC[id][0]]).addTo(rmap));
+  });
+  if (fit) {
+    const pts = realView === "all" ? allPts : dayPts.length ? dayPts : [RLOC[here]];
+    const b = pts.reduce((a, p) => [[Math.min(a[0][0], p[1]), Math.min(a[0][1], p[0])], [Math.max(a[1][0], p[1]), Math.max(a[1][1], p[0])]], [[180, 90], [-180, -90]]);
+    if (b[0][0] === b[1][0] && b[0][1] === b[1][1]) rmap.jumpTo({center: b[0], zoom: 12}); else rmap.fitBounds(b, {padding: 50, maxZoom: 13, duration: 600});
+  }
+  const est = x.st ? `，我估的步行距離約 ${x.st[0]} km` : "";
+  $("#realnote").textContent = `D${x.d} ${title(x)}：步行段${x.line ? "依 GPX 軌跡約 " + x.st[0] + " km" : "的直線距離約 " + walkKm.toFixed(1) + " km" + est}。實線是步行，虛線是搭車或纜車${x.line ? "" : "，直線不是實際步道"}。棕色細線是等高線（粗線每 ${"500"} m 標高度），比例尺在左下角。`;
+  const g = a => RLOC[a].join(",");
+  $("#gmap").href = dayLegs.length
+    ? `https://www.google.com/maps/dir/?api=1&origin=${g(dayLegs[0].a)}&destination=${g(dayLegs[dayLegs.length - 1].b)}${dayLegs.length > 1 ? "&waypoints=" + dayLegs.slice(1).map(l => g(l.a)).join("|") : ""}&travelmode=walking`
+    : `https://www.google.com/maps/search/?api=1&query=${g(here)}`;
+}
+function drawReal() {
+  if (!rmap) initReal(); else updateReal(true);
+}
+
+function jumpLoc(id) {
+  const i = days.findIndex(x => !x.fly && x.loc === id);
+  if (i >= 0) { bigOpen(false); go(i, true); }
+}
+
+function paint() {
+  const x = days[active];
+  $("#dock").classList.toggle("compact", compact);
+  setMap();
+  $("#info").innerHTML = `<div class="when">D${x.d} · ${x.date}</div><h3>${title(x)}</h3>
+    <div class="meta">${x.time ? `<span>${timeLabel(x)}</span>` : ""}${x.st ? `<span>${stText(x)}</span>` : ""}<span class="bed">住：${x.sleep}${x.alt ? ` · ${num(x.alt)} m` : ""}</span></div>
+    <p>${desc(x)}</p>
+    <div class="nav"><button class="btn" id="prev" type="button"${active === 0 ? " disabled" : ""}>◀<span class="lg"> 前一天</span></button><button class="btn" id="next" type="button"${active === days.length - 1 ? " disabled" : ""}><span class="lg">下一天 </span>▶</button><button class="btn" id="fpm" type="button"><span class="lg">剖面：</span>${fpMode === "day" ? "今天" : "整趟"}</button><button class="btn" id="mode" type="button"><span class="lg">地圖：</span>${mapMode === "follow" ? "跟隨" : "全覽"}</button><button class="btn" id="big" type="button">放大<span class="lg">地圖</span></button><button class="btn" id="cmp" type="button">${compact ? "展開" : "精簡"}</button></div>
+    <div class="key"><span><i></i>今天</span><span><i class="g"></i>走過</span><span><i class="t"></i>搭車</span></div>`;
+  document.querySelectorAll(".day").forEach(li => li.classList.toggle("active", +li.dataset.i === active));
+  chart();
+  drawFP();
+  fitDock();
+}
+
+function chart() {
   const pts = days.filter(x => x.alt !== undefined);
   const W = 90 + pts.length * 46, H = 270, L = 40, R = 16, T = 28, B = 36, MAX = 500;
   const xs = i => L + i * (W - L - R) / (pts.length - 1);
@@ -261,52 +1242,127 @@ function chart(days) {
   const g = [0, 250, 500].map(v => `<line class="grid" x1="${L}" x2="${W - R}" y1="${ys(v)}" y2="${ys(v)}"/><text x="${L - 6}" y="${ys(v) + 3}" text-anchor="end">${v}</text>`).join("");
   const line = pts.map((p, i) => `${xs(i)},${ys(p.alt)}`).join(" ");
   const area = `${xs(0)},${ys(0)} ${line} ${xs(pts.length - 1)},${ys(0)}`;
-  const dots = pts.map((p, i) => `<circle class="${p.town ? "town" : "hut"}" cx="${xs(i)}" cy="${ys(p.alt)}" r="5"/>` +
-    `<text x="${xs(i)}" y="${ys(p.alt) - 11}" text-anchor="middle">${num(p.alt)}</text>` +
-    `<text x="${xs(i)}" y="${H - 14}" text-anchor="middle">D${p.d}</text>`).join("");
-  $("#profile").innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="min-width:${Math.round(W * .92)}px" role="img" aria-label="每晚過夜高度折線圖">${g}<polygon class="area" points="${area}"/><polyline class="ln" points="${line}"/>${dots}</svg>`;
+  const segs = pts.slice(1).map((p, i) => `<line class="ln${p.mv === "bus" ? " bus" : ""}" x1="${xs(i)}" y1="${ys(pts[i].alt)}" x2="${xs(i + 1)}" y2="${ys(p.alt)}"/>`).join("");
+  const dots = pts.map((p, i) => `<g data-d="${p.d}"><circle class="${p.town ? "town" : "hut"}" cx="${xs(i)}" cy="${ys(p.alt)}" r="5"/>` +
+    (p.d === active ? `<circle class="ring" cx="${xs(i)}" cy="${ys(p.alt)}" r="10"/>` : "") +
+    `<text x="${xs(i)}" y="${ys(p.alt) - 14}" text-anchor="middle">${num(p.alt)}</text>` +
+    `<text x="${xs(i)}" y="${H - 14}" text-anchor="middle">D${p.d}</text></g>`).join("");
+  $("#profile").innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="min-width:${Math.round(W * .92)}px" role="img" aria-label="每晚過夜高度折線圖">${g}<polygon class="area" points="${area}"/>${segs}${dots}</svg>`;
 }
 
-const BASE_ITEMS = ["機票與英國來回交通", "英國 ETA 電子旅行許可（台灣護照需事先申請，出發前到官方網站確認）", "旅平險含健行與山區救援",
-  "行李轉運預約（Sherpa Van、Packhorse 等）", "英鎊現金與可用的信用卡", "防水外套與雨褲", "防水背包套與內袋",
-  "已磨合的防水登山鞋與備用襪", "登山杖", "OS 地圖或離線地圖 App，加路書", "行動電源與英規 G 型轉接頭", "護照與保險資料紙本"];
-let saved = {};
-try { saved = JSON.parse(localStorage.getItem("c2c-check") || "{}"); } catch (e) {}
-// 雲端同步（Firestore REST）：網址帶 #k=密鑰 才啟用，沒有就只存本機。規則只放行帶這把密鑰的兩個文件。
-const SYNC = (() => {
-  const API = "https://firestore.googleapis.com/v1/projects/travel-plans-ytw/databases/(default)/documents/trips/", KEY = "AIzaSyAo1lMYkAOJcjh36DGJerCN2EJ_R7rZ8c4", SUF = "c2c";
-  let k = "";
-  try { const m = /[#&]k=([\w-]+)/.exec(location.hash); if (m) localStorage.setItem("trip-key", m[1]); k = localStorage.getItem("trip-key") || ""; } catch (e) {}
-  const url = () => API + k + "-" + SUF + "?key=" + KEY;
-  const pull = async () => { const r = await fetch(url()); if (r.status === 404) return {}; if (!r.ok) throw r.status; return JSON.parse((((await r.json()).fields || {}).check || {}).stringValue || "{}"); };
-  // ponytail: 先讀再寫，兩人同一秒勾同一份清單才會互蓋，夠用
-  const push = async (key, val) => { if (!k) return; try { const c = {...await pull(), [key]: val}; await fetch(url() + "&updateMask.fieldPaths=check", {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fields: {check: {stringValue: JSON.stringify(c)}}})}); } catch (e) {} };
-  const sync = async apply => { if (!k) return; try { apply(await pull()); } catch (e) {} };
-  return {push, sync};
-})();
-
-function checklist(beds) {
-  const names = [...new Set(beds.map(x => x.sleep))];
-  const items = [`訂好 ${names.length} 處住宿：${names.join("、")}`, ...BASE_ITEMS];
-  $("#check").innerHTML = items.map((t, i) => `<li><label><input type="checkbox" id="c${i}"${saved[t] ? " checked" : ""} data-k="${t.replace(/"/g, "&quot;")}"><span>${t}</span></label></li>`).join("");
+function fitDock() { document.documentElement.style.setProperty("--dockh", ($("#dock").offsetHeight + 12) + "px"); }
+let lockUntil = 0, ticking = false;
+function go(i, scroll) {
+  active = Math.max(0, Math.min(days.length - 1, i));
+  paint();
+  if (scroll) {
+    lockUntil = Date.now() + 1000;   // 平滑捲動途中不要被捲動同步搶走
+    // 換天後版面已經定型（舊卡片收起、新卡片展開、置頂區高度也更新了），再算目標位置：讓卡片頂端剛好接在置頂區下緣
+    const card = document.querySelector(`.day[data-i="${active}"]`);
+    const y = window.scrollY + card.getBoundingClientRect().top - $("#dock").offsetHeight - 10;
+    window.scrollTo({top: Math.max(0, y), behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
+  }
 }
-$("#check").addEventListener("change", e => {
-  saved[e.target.dataset.k] = e.target.checked;
-  try { localStorage.setItem("c2c-check", JSON.stringify(saved)); } catch (err) {}
-  SYNC.push(e.target.dataset.k, e.target.checked);
-});
+// 往下滾時，置頂地圖跟著換成目前讀到的那一天（以置頂區下緣往下 24px 當閱讀線）
+function syncFromScroll() {
+  ticking = false;
+  if (Date.now() < lockUntil || !$("#modal").hidden || !$("#lb").hidden) return;
+  const list = $("#days"), lr = list.getBoundingClientRect(), line = $("#dock").getBoundingClientRect().bottom + 24;
+  if (lr.top > line || lr.bottom < line) return;
+  const cards = list.children;
+  let idx = 0;
+  for (let k = 0; k < cards.length; k++) { if (cards[k].getBoundingClientRect().top <= line) idx = k; else break; }
+  if (idx !== active) {
+    // 換天會讓舊卡片收起、新卡片展開、置頂區高度改變。先記下新卡片的位置，換完再補回差距，畫面才不會跳
+    // 錨點選「新那天卡片裡、閱讀線上方最近的一塊內容」：往上滾時線在卡片下半段，卡片下方會多出照片列，只錨卡片頂端會跳
+    const a = cards[idx];
+    let anchor = a;
+    for (const e of a.querySelectorAll(".body > *")) {
+      if (e.classList.contains("ph-strip")) continue;
+      if (e.getBoundingClientRect().top <= line) anchor = e; else break;
+    }
+    const before = anchor.getBoundingClientRect().top;
+    go(idx, false);
+    const d = anchor.getBoundingClientRect().top - before;
+    if (Math.abs(d) > 1) window.scrollBy(0, d);
+  }
+}
+window.addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(syncFromScroll); } }, {passive: true});
+
+function setPlan(n) {
+  cur = n; days = build(n); active = Math.min(1, days.length - 1);
+  renderStatic(); lists(); paint();
+}
 
 $("#plans").innerHTML = Object.keys(PLANS).map(n => `<button class="plan" type="button" data-n="${n}" aria-pressed="false">
-  ${PLANS[n].pick ? `<em>${PLANS[n].pick}</em>` : ""}<b>${PLANS[n].name}</b><span>${PLANS[n].sub}</span></button>`).join("");
+  ${PLANS[n].pick ? `<em>${PLANS[n].pick}</em>` : ""}<b>${PLANS[n].name}</b><span>${PLANS[n].tag}</span><small>${range(+n)}</small></button>`).join("");
 $("#plans").addEventListener("click", e => {
   const b = e.target.closest(".plan");
   if (!b) return;
-  cur = +b.dataset.n;
-  try { localStorage.setItem("c2c-plan", cur); } catch (err) {}
-  render();
+  try { localStorage.setItem("c2c-plan", b.dataset.n); } catch (err) {}
+  setPlan(+b.dataset.n);
 });
-render();
-const applyRemote = r => { Object.assign(saved, r); try { localStorage.setItem("c2c-check", JSON.stringify(saved)); } catch (err) {} render(); };
-SYNC.sync(applyRemote);
-document.addEventListener("visibilitychange", () => { if (!document.hidden) SYNC.sync(applyRemote); });
+$("#days").addEventListener("click", e => { const li = e.target.closest(".day"); if (li) go(+li.dataset.i, false); });
+$("#days").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { const li = e.target.closest(".day"); if (li) { e.preventDefault(); go(+li.dataset.i, false); } } });
+$("#info").addEventListener("click", e => {
+  if (e.target.id === "prev") go(active - 1, true);
+  if (e.target.id === "next") go(active + 1, true);
+  if (e.target.id === "mode") { mapMode = mapMode === "follow" ? "all" : "follow"; try { localStorage.setItem("c2c-map", mapMode); } catch (err) {} paint(); }
+  if (e.target.id === "big") bigOpen(true);
+  if (e.target.id === "cmp") { compact = !compact; try { localStorage.setItem("c2c-compact", compact ? "1" : "0"); } catch (err) {} paint(); }
+});
+document.addEventListener("click", e => {
+  const g = e.target.closest("[data-loc]");
+  if (g) jumpLoc(g.dataset.loc);
+  if (e.target.id === "modal" || e.target.id === "bigclose") bigOpen(false);
+  if (e.target.id === "mPrev" || e.target.id === "mNext") { go(active + (e.target.id === "mNext" ? 1 : -1), false); showBig(bigTab); }
+  if (e.target.id === "tabReal") showBig("real");
+  if (e.target.id === "tabSch") showBig("sch");
+  if (e.target.id === "viewAll") { realView = "all"; updateReal(true); }
+  if (e.target.id === "viewDay") { realView = "day"; updateReal(true); }
+  const bm = {baseClean: "clean", baseSat: "sat"}[e.target.id];
+  if (bm) { rbase = bm; updateReal(false); }
+  const tm = {tgContour: "contour", tgTrails: "trails"}[e.target.id];
+  if (tm) { rtog[tm] = !rtog[tm]; updateReal(false); }
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("#modal").hidden) bigOpen(false); });
+$("#profile").addEventListener("click", e => { const g = e.target.closest("[data-d]"); if (g) go(+g.dataset.d, true); });
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-ph]");
+  if (b) { const [d, j] = b.dataset.ph.split(",").map(Number); lbShow(d, j); return; }
+  if (e.target.id === "lb" || e.target.id === "lbclose") $("#lb").hidden = true;
+  if (e.target.id === "lbprev") lbShow(lb.d, lb.j - 1);
+  if (e.target.id === "lbnext") lbShow(lb.d, lb.j + 1);
+});
+document.addEventListener("keydown", e => {
+  if ($("#lb").hidden) return;
+  if (e.key === "Escape") $("#lb").hidden = true;
+  if (e.key === "ArrowLeft") lbShow(lb.d, lb.j - 1);
+  if (e.key === "ArrowRight") lbShow(lb.d, lb.j + 1);
+});
+document.addEventListener("keydown", e => {
+  if (!$("#lb").hidden) return;
+  if (/INPUT|TEXTAREA|BUTTON/.test(document.activeElement.tagName) && e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  if (document.activeElement.tagName === "INPUT") return;
+  if (e.key === "ArrowRight") go(active + 1, true);
+  if (e.key === "ArrowLeft") go(active - 1, true);
+});
+window.addEventListener("resize", () => { drawFP(); setMap(); if (!$("#modal").hidden) { if (bigTab === "sch") drawBig(); else if (rmap) rmap.resize(); } fitDock(); });
+$("#fp").addEventListener("click", e => {
+  const x = e.clientX - $("#fp").getBoundingClientRect().left, s = fpSpans.find(p => x >= p.x0 && x <= p.x1);
+  if (s) go(s.d, true);
+});
+
+// 複製訂房信
+$("#huts").addEventListener("click", e => {
+  const b = e.target.closest("[data-mail]");
+  if (!b) return;
+  const r = (window.__rows || []).find(x => days[+b.dataset.mail] && x.name === days[+b.dataset.mail].sleep && x.dt === days[+b.dataset.mail].dt);
+  if (!r) return;
+  const text = mailText(r), done = () => { const t = b.textContent; b.textContent = "已複製"; setTimeout(() => b.textContent = t, 1500); };
+  const fallback = () => { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); done(); } catch (err) {} ta.remove(); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+});
+
+setPlan(cur);
 </script>
