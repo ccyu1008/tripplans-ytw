@@ -1,0 +1,1262 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>多洛米地山屋手冊</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=DM+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.js"></script>
+<script src="https://unpkg.com/maplibre-contour@0.1.0/dist/index.min.js"></script>
+<style>
+/* Layout: one column like a trail guide; CAI red-white-red waymark stripe as the only ornament; a sticky schematic map follows the day you pick. */
+:root {
+  --bg: #eceeef;
+  --surface: #f8f9f9;
+  --fg: #1c2a2e;
+  --muted: #5c6b70;
+  --line: #cfd6d8;
+  --red: #c8322a;
+  --red-tint: rgba(200, 50, 42, .12);
+  --green: #2f5d50;
+  --gold: #a8741a;
+  --transit: #6f8a99;
+  --f-display: "Big Shoulders Display", "Noto Sans TC", sans-serif;
+  --f-body: "Noto Sans TC", system-ui, sans-serif;
+  --f-mono: "DM Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12191b; --surface: #1b2427; --fg: #e6ebec; --muted: #94a3a8; --line: #2e3b3f;
+    --red: #ec6a60; --red-tint: rgba(236, 106, 96, .16); --green: #7fb8a6; --gold: #d9a441; --transit: #8aa5b3;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12191b; --surface: #1b2427; --fg: #e6ebec; --muted: #94a3a8; --line: #2e3b3f;
+  --red: #ec6a60; --red-tint: rgba(236, 106, 96, .16); --green: #7fb8a6; --gold: #d9a441; --transit: #8aa5b3;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.7 var(--f-body);
+  padding-block: 0 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); background: var(--bg); z-index: 30; }
+.wrap { max-width: 880px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; }
+.stripe { height: 14px; margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); background: linear-gradient(var(--red) 0 33%, #fff 33% 66%, var(--red) 66%); }
+:root[data-theme="dark"] .stripe { background: linear-gradient(var(--red) 0 33%, #e6ebec 33% 66%, var(--red) 66%); }
+header { padding-top: 32px; display: grid; gap: 14px; }
+.eyebrow { font: 500 12px var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+h1 { font: 800 clamp(44px, 9vw, 76px)/.95 var(--f-display); letter-spacing: .01em; margin: 0; text-wrap: balance; }
+h1 em { font-style: normal; color: var(--red); }
+.lede { max-width: 62ch; color: var(--muted); margin: 0; }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+@media (min-width: 560px) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.stats div { background: var(--surface); padding: 12px 14px; min-width: 0; }
+.stats b { display: block; font: 800 28px/1.1 var(--f-display); font-variant-numeric: tabular-nums; }
+.stats span { font-size: 12px; color: var(--muted); }
+h2 { font: 800 28px/1.1 var(--f-display); letter-spacing: .03em; margin: 0 0 14px; display: flex; align-items: center; gap: 10px; }
+h2::before { content: ""; width: 10px; height: 22px; background: var(--red); flex: none; }
+.note { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+.plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.plan { font: inherit; text-align: left; color: var(--fg); background: var(--surface); border: 1px solid var(--line); padding: 12px 14px; cursor: pointer; display: grid; gap: 4px; align-content: start; }
+.plan b { font: 800 26px/1 var(--f-display); }
+.plan span { font-size: 13px; color: var(--muted); }
+.plan:hover { border-color: var(--muted); }
+.plan[aria-pressed="true"] { border-color: var(--red); background: var(--red-tint); box-shadow: inset 0 -3px 0 var(--red); }
+.plan em { font: 500 11px var(--f-mono); font-style: normal; color: var(--red); }
+.plan small { font: 400 11px var(--f-mono); color: var(--muted); }
+[hidden] { display: none !important; }
+.mbox { width: min(1120px, 100%); }
+#realmap { width: 100%; height: min(70vh, 760px); background: var(--bg); }
+#realwrap { width: 100%; display: grid; gap: 6px; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; justify-self: stretch !important; align-items: center; }
+.daynav { display: flex; align-items: center; gap: 12px; justify-content: space-between; width: 100%; }
+.daynav span { flex: 1; text-align: center; font: 500 13px var(--f-mono); color: var(--muted); min-width: 0; }
+.daynav .btn { justify-self: auto !important; flex: none; }
+.daynav .btn:disabled { opacity: .4; cursor: default; }
+.tabs .sep { color: var(--line); } .tabs .btn { justify-self: auto !important; text-decoration: none; display: inline-block; }
+.tabs .btn[aria-pressed="true"] { border-color: var(--red); background: var(--red-tint); }
+#bigclose { margin-left: auto; }
+.rm { width: 14px; height: 14px; cursor: pointer; }
+.rm i { position: absolute; inset: 0; border-radius: 50%; background: #1c2a2e; border: 2px solid #fff; }
+.rm span { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); white-space: nowrap; background: rgba(255, 255, 255, .92); color: #1c2a2e; font: 500 11px "DM Mono", monospace; padding: 1px 5px; border-radius: 3px; }
+.rm.now i { background: #d63a30; width: 18px; height: 18px; inset: -2px; }
+.rm.now span { background: #d63a30; color: #fff; left: 20px; }
+.maplibregl-map { font-family: var(--f-body); }
+#modal { position: fixed; inset: 0; z-index: 50; background: rgba(8, 14, 16, .6); display: grid; place-items: center; padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
+.mbox { background: var(--surface); border: 1px solid var(--line); padding: 10px; display: grid; gap: 6px; justify-items: center; max-height: 100%; overflow: auto; }
+.mbox .btn { justify-self: end; }
+.mbox .note { margin: 0; }
+.ph { border: 0; padding: 0; background: var(--line); cursor: zoom-in; position: relative; overflow: hidden; display: block; }
+.ph img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.ph-lead { margin: 10px 10px 10px 0; align-self: start; width: 132px; height: 88px; }
+.ph-lead span { position: absolute; right: 4px; bottom: 4px; background: rgba(0, 0, 0, .65); color: #fff; font: 500 11px var(--f-mono); padding: 0 7px; border-radius: 99px; }
+.ph-strip { display: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 6px; }
+.ph-strip .ph { aspect-ratio: 4 / 3; width: 100%; }
+.ph-more { grid-column: 1 / -1; font-size: 12px; color: var(--red); }
+.day.has-ph { grid-template-columns: 84px minmax(0, 1fr) 144px; }
+.day.has-ph.active { grid-template-columns: 84px minmax(0, 1fr); }
+.day.active .ph-strip { display: grid; }
+.day.active .ph-lead { display: none; }
+@media (max-width: 640px) {
+  .day.has-ph { grid-template-columns: 64px minmax(0, 1fr); }
+  .day.has-ph.active { grid-template-columns: 64px minmax(0, 1fr); }
+  .ph-lead { grid-column: 2; width: auto; height: 110px; margin: 0 12px 12px 16px; }
+}
+#lb { position: fixed; inset: 0; z-index: 60; background: rgba(6, 10, 12, .9); display: grid; place-items: center; padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
+.lbbox { display: grid; gap: 10px; justify-items: center; max-width: min(1100px, 100%); }
+.lbbox .btn { justify-self: end; }
+#lbimg { max-width: 100%; max-height: 72vh; object-fit: contain; background: #111; }
+#lbcap { color: #e6ebec; font-size: 14px; text-align: center; display: grid; gap: 2px; }
+#lbcap small { color: #9fb0b5; font-size: 12px; } #lbcap a { color: #f0a29b; }
+.lbnav { display: flex; gap: 10px; }
+.steps { list-style: none; margin: 2px 0; padding: 0; display: grid; gap: 4px; }
+.steps li { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 10px; font-size: 14px; }
+.steps b { font: 500 12px var(--f-mono); color: var(--muted); padding-top: 3px; }
+.day .warn { margin: 2px 0; background: var(--red-tint); padding: 6px 10px; border-left: 3px solid var(--red); font-size: 13.5px; color: var(--fg); }
+.day .alt { font-size: 13px; }
+.pill.nosig { color: var(--muted); }
+.notice { border: 1px solid var(--line); background: var(--surface); padding: 12px 16px; display: grid; gap: 6px; font-size: 14px; }
+.notice.red { border-left: 4px solid var(--red); }
+.notice ul, .notice ol { margin: 0; padding-left: 20px; color: var(--muted); }
+.notice li + li { margin-top: 3px; }
+.notice li b { color: var(--fg); }
+.cost-total td { font-weight: 700; border-top: 2px solid var(--fg); }
+@media (max-width: 520px) { .steps li { grid-template-columns: 64px minmax(0, 1fr); } }
+.day .tag .dn { font: 800 28px/1 var(--f-display); }
+.day .tag .dd { font: 400 11px var(--f-mono); color: var(--muted); }
+.day .tag .dalt { font-size: 11px; color: var(--muted); margin-top: 8px; }
+.day .tag .dalt b { display: block; font: 700 14px var(--f-mono); color: var(--fg); }
+.dsun { font: 400 10.5px/1.5 var(--f-mono); color: var(--muted); margin-top: 8px; }
+.dorig { margin: 0; font: 400 12px/1.5 var(--f-mono); color: var(--muted); }
+.ddesc { margin: 0; color: var(--muted); font-size: 14px; }
+.tl { list-style: none; margin: 4px 0; padding: 0; display: grid; gap: 5px; }
+.tl li { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 10px; font-size: 14px; }
+.tl .hh { font: 500 12px var(--f-mono); color: var(--muted); padding-top: 3px; }
+.tl li.hot .hh { color: var(--red); font-weight: 700; }
+.tl li.hot .ww { font-weight: 500; }
+.day .note { margin: 2px 0; padding: 8px 12px; background: var(--bg); font-size: 13.5px; border-left: 3px solid var(--line); color: var(--fg); }
+.day .note.warn { background: var(--red-tint); border-left-color: var(--red); }
+.stay { margin: 4px 0 0; font-size: 14px; }
+.nosig { margin-left: 8px; font: 500 11px var(--f-mono); color: var(--red); border: 1px solid var(--red); border-radius: 99px; padding: 0 8px; white-space: nowrap; }
+@media (max-width: 520px) { .tl li { grid-template-columns: 64px minmax(0, 1fr); } }
+td .btn { white-space: nowrap; }
+.dock.compact .fp { display: none; }
+.dock.compact .mapbox { height: 110px; }
+.m-seg, .m-dot, .m-pulse { vector-effect: non-scaling-stroke; }
+.fp-n { font: 400 9.5px var(--f-mono); fill: var(--muted); }
+.fp-n.now { fill: var(--red); font-weight: 500; }
+.fp-n.fut { opacity: .75; }
+.chart { overflow-x: auto; border: 1px solid var(--line); background: var(--surface); }
+.chart svg { display: block; width: 100%; height: auto; }
+.chart text { font: 400 10px var(--f-mono); fill: var(--muted); }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .area { fill: var(--red-tint); }
+.chart .ln { fill: none; stroke: var(--red); stroke-width: 2; }
+.chart .hut { fill: var(--red); stroke: var(--surface); stroke-width: 2; }
+.chart .town { fill: var(--surface); stroke: var(--muted); stroke-width: 2; }
+.chart .ring { fill: none; stroke: var(--fg); stroke-width: 2; }
+.chart [data-d] { cursor: pointer; }
+.chart .ln.bus { stroke: var(--transit); stroke-dasharray: 5 4; }
+.profrow { display: flex; align-items: center; gap: 8px; font: 400 11px var(--f-mono); color: var(--muted); margin-top: 2px; }
+.profrow span { flex: none; min-width: 56px; }
+.profrow span:last-child { text-align: right; }
+.prof { flex: 1; min-width: 0; height: 48px; display: block; }
+.prof .ar { fill: var(--red-tint); }
+.prof .w, .prof .b { vector-effect: non-scaling-stroke; stroke-linecap: round; fill: none; }
+.prof .w { stroke: var(--red); stroke-width: 2; }
+.prof .b { stroke: var(--transit); stroke-width: 1.6; stroke-dasharray: 4 3; }
+.prof .base { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+@media (max-width: 520px) { .info .profrow { display: none; } }
+.legend { display: flex; gap: 18px; flex-wrap: wrap; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+
+/* sticky map dock */
+.trip { display: grid; gap: 12px; align-content: start; }
+.dock { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--bg); padding-block: 8px; }
+.dock-in { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; border: 1px solid var(--line); background: var(--surface); padding: 10px; }
+.mapbox { height: clamp(150px, 25vh, 240px); aspect-ratio: 400 / 520; max-width: 44vw; }
+.fp { grid-column: 1 / -1; min-width: 0; border-top: 1px solid var(--line); padding-top: 6px; cursor: pointer; }
+.fp svg { display: block; max-width: 100%; }
+.fp-base { stroke: var(--line); stroke-width: 1; }
+.fp-l { stroke-linecap: round; }
+.fp-l.fut { stroke: var(--fg); opacity: .3; stroke-width: 1.5; }
+.fp-l.past { stroke: var(--muted); opacity: .7; stroke-width: 2; }
+.fp-l.now { stroke: var(--red); stroke-width: 3; }
+.fp-l.bus { stroke-dasharray: 4 3; }
+.fp-d.fut { fill: var(--surface); stroke: var(--muted); stroke-width: 1.2; opacity: .6; }
+.fp-d.past { fill: var(--muted); opacity: .7; }
+.fp-d.now { fill: var(--red); stroke: var(--surface); stroke-width: 2; }
+.fp-band { fill: var(--red-tint); }
+.fp-t { font: 400 9px var(--f-mono); fill: var(--muted); }
+.fp-t.now { fill: var(--red); font-weight: 500; font-size: 10.5px; }
+.mapbox svg { width: 100%; height: 100%; display: block; }
+.info { min-width: 0; display: grid; gap: 4px; align-content: start; }
+.info .when { font: 500 12px var(--f-mono); color: var(--red); letter-spacing: .06em; }
+.info h3 { margin: 0; font: 700 16px/1.4 var(--f-body); text-wrap: balance; }
+.info p { margin: 0; font-size: 13px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.nav { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; align-items: center; }
+.btn { font: 500 13px var(--f-body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); padding: 4px 12px; cursor: pointer; }
+.btn:hover { border-color: var(--red); }
+.key { font: 400 11px var(--f-mono); color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; }
+.key i { display: inline-block; width: 18px; border-top: 3px solid var(--red); vertical-align: middle; margin-right: 4px; }
+.key i.t { border-top: 2px dashed var(--muted); }
+.key i.g { border-top-color: var(--muted); }
+
+.m-bg { fill: var(--bg); }
+.m-zone { font: 500 9px var(--f-mono); letter-spacing: .14em; fill: var(--line); }
+.m-seg { fill: none; stroke-linecap: round; }
+.m-seg.walk { stroke: var(--line); stroke-width: 2; }
+.m-seg.bus { stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.m-seg.done.walk { stroke: var(--muted); stroke-width: 2.5; opacity: .7; }
+.m-seg.done.bus { stroke: var(--muted); stroke-width: 1.8; opacity: .7; }
+.m-seg.now.walk { stroke: var(--red); stroke-width: 4.5; }
+.m-seg.now.bus { stroke: var(--red); stroke-width: 3; }
+.m-seg.now { animation: march 1.2s linear infinite; stroke-dasharray: 8 6; }
+@keyframes march { to { stroke-dashoffset: -14; } }
+.m-dot { fill: var(--surface); stroke: var(--muted); stroke-width: 1.6; }
+.m-dot.seen { fill: var(--muted); stroke: var(--surface); }
+.m-dot.now { fill: var(--fg); stroke: var(--red); stroke-width: 3; }
+.m-pulse { fill: none; stroke: var(--red); stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: pulse 1.8s ease-out infinite; }
+@keyframes pulse { from { transform: scale(.6); opacity: .9; } to { transform: scale(2.4); opacity: 0; } }
+.m-lab { font: 400 9.5px var(--f-mono); fill: var(--muted); }
+.m-lab.seen { fill: var(--fg); }
+.m-lab.now { fill: var(--fg); font-weight: 500; font-size: 11px; }
+@media (prefers-reduced-motion: reduce) { .m-seg.now, .m-pulse { animation: none; } }
+
+.days { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.day { display: grid; grid-template-columns: 84px minmax(0, 1fr); background: var(--surface); border: 1px solid var(--line); cursor: pointer; scroll-margin-top: var(--dockh, 320px); }
+.day:hover { border-color: var(--muted); }
+.day.active { border-color: var(--red); box-shadow: inset 4px 0 0 var(--red); background: var(--red-tint); }
+.day .tag { padding: 12px; border-right: 1px solid var(--line); display: grid; align-content: start; gap: 2px; }
+.day .tag b { font: 800 28px/1 var(--f-display); }
+.day .tag span { font: 400 11px var(--f-mono); color: var(--muted); }
+.day .body { padding: 12px 16px; min-width: 0; display: grid; gap: 6px; }
+.day h3 { margin: 0; font: 700 17px/1.4 var(--f-body); text-wrap: balance; }
+.day p { margin: 0; color: var(--muted); font-size: 14px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font: 400 12px var(--f-mono); color: var(--muted); }
+.meta .bed { color: var(--fg); }
+.pill { font: 500 11px var(--f-mono); padding: 1px 8px; border: 1px solid currentColor; border-radius: 99px; }
+.lv-0 { color: var(--muted); } .lv-1 { color: var(--green); } .lv-2 { color: var(--gold); } .lv-3 { color: var(--red); }
+.day.fly { border-style: dashed; }
+.day.rest { border-left: 4px solid var(--green); }
+
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.box { background: var(--surface); border: 1px solid var(--line); padding: 14px 16px; min-width: 0; }
+.box h3 { margin: 0 0 6px; font: 700 15px var(--f-body); }
+.box ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+.box li + li { margin-top: 4px; }
+.stack { display: grid; gap: 22px; }
+.sub { font: 700 17px var(--f-body); margin: 0 0 8px; }
+.timeline { margin: 0; padding: 0; list-style: none; display: grid; gap: 0; border-left: 2px solid var(--line); margin-left: 6px; }
+.timeline li { position: relative; padding: 0 0 14px 18px; }
+.timeline li::before { content: ""; position: absolute; left: -7px; top: 8px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2px solid var(--red); }
+.timeline b { font: 500 12px var(--f-mono); color: var(--red); display: block; letter-spacing: .05em; }
+.timeline span { font-size: 14px; color: var(--fg); }
+.table-scroll { overflow-x: auto; border: 1px solid var(--line); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 500 12px var(--f-mono); letter-spacing: .08em; color: var(--muted); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td small { display: block; color: var(--muted); font-size: 12px; line-height: 1.5; }
+td a { color: var(--red); }
+.pri { font: 500 11px var(--f-mono); padding: 1px 8px; border: 1px solid currentColor; border-radius: 99px; white-space: nowrap; }
+.pri-3 { color: var(--red); } .pri-2 { color: var(--gold); } .pri-1 { color: var(--muted); }
+.check { list-style: none; padding: 0 !important; display: grid; gap: 2px; }
+.check label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; padding: 3px 0; color: var(--fg); }
+.check input { margin-top: 5px; accent-color: var(--red); flex: none; }
+.check input:checked + span { color: var(--muted); text-decoration: line-through; }
+:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+.fine { font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; }
+@media (max-width: 520px) {
+  .day { grid-template-columns: 64px minmax(0, 1fr); } .day .tag { padding: 10px 8px; }
+  .dock-in { gap: 10px; padding: 8px; } .info p { -webkit-line-clamp: 2; } .info h3 { font-size: 14px; }
+  .mapbox { height: clamp(130px, 21vh, 190px); }
+}
+</style>
+
+<div class="stripe"></div>
+<div class="wrap">
+<header>
+  <div class="eyebrow">Alta Via 1 · Dolomiti · 2027 / 09</div>
+  <h1>多洛米地<em>山屋</em>縱走</h1>
+  <p class="lede" id="lede"></p>
+  <div class="stats" id="stats"></div>
+  <div class="notice red" id="bookhint"></div>
+</header>
+
+<section>
+  <h2>選擇天數</h2>
+  <p class="note">兩個方案路線不同：16 天只走東線（Tre Cime 與 Alta Via 1 中段），21 天再加西邊的 Rosengarten 與 Santnerpasshütte。回台日不同，是因為 Coldai 等山屋有來源寫 9 月中前後關門，所以 Alta Via 1 都排在 9 月 10 日以前走完。選好後，下方的地圖、行程、訂房表都會跟著換。</p>
+  <div class="plans" id="plans"></div>
+  <div class="grid2" id="plandetail" style="margin-top:14px"></div>
+</section>
+
+<section>
+  <h2>每晚過夜高度</h2>
+  <p class="note">實心點是山屋，空心點是鎮上旅館，圓圈是目前選的那天，可以直接點。</p>
+  <div class="chart"><div id="profile"></div>
+    <div class="legend"><span><i style="background:var(--red)"></i>山屋</span><span><i style="border:2px solid var(--muted)"></i>鎮上旅館</span><span><i style="width:18px;height:0;border-radius:0;border-top:2px dashed var(--transit)"></i>搭車（不是自己走）</span></div>
+  </div>
+</section>
+
+<section class="trip">
+  <h2>逐日行程</h2>
+  <div class="notice red" id="nosig">
+    <b>住山屋沒有手機訊號是正常的</b>
+    <ul>
+      <li>多數山屋沒有手機訊號，也沒有 Wi-Fi，有的話是額外的好運，不要依賴。</li>
+      <li>出發前先下載離線地圖、山屋電話與訂房確認信，並先告訴家人「這幾天可能整天聯絡不到」，每天晚上才有機會報平安。</li>
+      <li>刷卡機常要網路，現金要備足。隔天的天氣與路況，請直接問山屋主人。</li>
+      <li>緊急電話 112：只要有任何網路覆蓋就可能撥通，但山區不保證。出事時先找山屋協助。</li>
+    </ul>
+  </div>
+  <div class="notice" id="missable"></div>
+  <div class="dock" id="dock">
+    <div class="dock-in">
+      <div class="mapbox" id="map"></div>
+      <div class="info" id="info"></div>
+      <div class="fp" id="fp" title="整趟高度剖面，點一下跳到那天"></div>
+    </div>
+  </div>
+  <p class="note" id="daynote"></p>
+  <ol class="days" id="days"></ol>
+</section>
+
+<section id="book">
+  <h2>訂山屋</h2>
+  <div class="stack">
+    <div>
+      <h3 class="sub">什麼時候要做什麼</h3>
+      <p class="note">我沒找到各山屋官方的 2027 年開放預約日，下面的時間是依一般經驗抓的，要以各山屋官網或回信為準。</p>
+      <ul class="timeline" id="timeline"></ul>
+    </div>
+    <div>
+      <h3 class="sub">這個方案要訂的住宿</h3>
+      <p class="note">「官網」連結來自搜尋結果裡的第三方目錄，我沒有逐一開啟，可能已失效。沒找到官網的山屋（例如 Carestiato、Tierser Alpl、Coldai）會附資料頁或「搜尋」。Pian di Cengia 只接受電話預約。訂房信範本是英文，按「複製」後貼進 email 或 WhatsApp。</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>住宿</th><th>入住</th><th>優先</th><th>建議何時訂</th><th>怎麼訂</th><th>備註</th><th></th></tr></thead>
+        <tbody id="huts"></tbody>
+      </table></div>
+    </div>
+    <div class="grid2">
+      <div class="box"><h3>訂房時要問清楚</h3><ul class="check" id="askcheck"></ul></div>
+      <div class="box"><h3>出發前清單</h3><ul class="check" id="check"></ul></div>
+    </div>
+    <div class="grid2">
+      <div class="box"><h3>預約的幾個提醒</h3><ul>
+        <li>旺季（7、8 月）要預約，9 月上旬也建議訂好，Locatelli、Lagazuoi、Santnerpasshütte 最先額滿。</li>
+        <li>有來源表示 4~6 週前訂還來得及，也有說近年越來越難訂，所以我建議越早越好。</li>
+        <li>要取消或改期一定要通知山屋，沒出現又沒通知，山屋可能會以為你們出事。</li>
+        <li>日期不要排到 9 月 15 日以後，部分山屋會提早關。</li></ul></div>
+      <div class="box"><h3>現金</h3><ul>
+        <li id="cash"></li>
+        <li>不少山屋只收現金，也沒訊號，要一次帶足。</li>
+        <li>熱水澡通常另收 €3~5。</li></ul></div>
+    </div>
+    <div class="box"><h3>其他訂房管道</h3><ul>
+      <li><a href="https://www.prenotarifugi.cai.it/" target="_blank" rel="noopener">CAI 山屋預約平台</a>：義大利登山協會的線上預約，部分山屋（例如 Nuvolau）有上架，不是每間都有。</li>
+      <li><a href="https://bookatrekking.com/" target="_blank" rel="noopener">Bookatrekking</a>：旅行社套裝行程，有含山屋的路線，價格較高但他們代訂。</li>
+      <li><a href="https://www.moonhoneytravel.com/alta-via-1-rifugios-booking/" target="_blank" rel="noopener">Alta Via 1 訂山屋經驗文</a>：一篇說明自己訂房難度的部落格。</li></ul></div>
+  </div>
+</section>
+
+<section>
+  <h2>交通、票券與費用</h2>
+  <div class="stack">
+    <div class="grid2">
+      <div class="box"><h3>交通要點</h3><ul>
+        <li><b>米蘭 → 山區</b>：馬爾彭薩機場搭 Malpensa Express 到 Milano Centrale（約 50 分），火車經 Verona 到 Bolzano 約 3.5~4 小時（米蘭到 Verona 每小時一班約 1 小時 13 分，Verona 到 Bolzano 快車約 1.5 小時）；也有巴士從機場直達 Bolzano，約 4 小時 37 分。Bolzano 之後轉巴士到 Nova Levante，或轉火車到 Dobbiaco，我沒查證。數字取自 Rome2Rio 與大學網頁，不是官方時刻。</li>
+        <li><b>下山當天</b>：Vazzoler 走到 Listolade，搭巴士到威尼斯 Piazzale Roma（約 2 小時 51 分，班次我沒查到），走到 Santa Lucia 火車站轉火車到米蘭（約 2.5 小時，未查證）。接不上就在威尼斯本島外的 Mestre 過夜，不住本島。</li>
+        <li><b>Tre Cime</b>：Misurina 到 Rif. Auronzo 的接駁車 2026 年資料是一人 €10、一天有效，有來源說要預約。開車上去的過路費 2026 年約 €40，我們用不到。</li>
+        <li><b>Braies</b>：2026 年 7/1~9/15 的 9:00~16:00 管制，442 號巴士要預約，且客卡與 Mobilcard 不通用；9/16 以後解除。2027 年規則要再查。步行不受限。</li>
+        <li><b>Gardeccia</b>：Pera 的接駁小巴 2019 年已停，改搭 Vigo 的 Ciampedie 纜車（2019 年來回約 €18）或 Pera 的座椅纜車（約 €8）。現價要查 fassa.com。</li>
+        <li><b>Vazzoler 下山</b>：山屋沒有巴士可到，走下去到 Listolade。ATVO 到威尼斯約 2 小時 51 分、一天約 2 班；也可搭 Dolomiti Bus 到 Belluno（約 46 分）再轉火車。</li>
+      </ul></div>
+      <div class="box"><h3>票券</h3><ul>
+        <li><b>Südtirol Guest Pass</b>：住在南提洛加盟住宿的旅客，免費搭多數公共運輸，數位發放，不能購買。Nova Levante、Dobbiaco、Braies 在南提洛，但 Cortina、Misurina 與 Fassa 山谷不在，我沒查證是否通用。入住時直接問。</li>
+        <li><b>Braies 管制時段</b>客卡不通用，要另外買票。</li>
+        <li><b>Lagazuoi 纜車</b>：滑雪場列表寫 9:00~16:40，夏季營運與票價沒查到。我們走路上去，用不到。</li>
+        <li>多數巴士要在上車前刷票驗證，現金買票的話要準備零錢。</li>
+      </ul></div>
+    </div>
+    <div>
+      <h3 class="sub">費用估算（兩個人，不含機票）</h3>
+      <p class="note" id="costnote"></p>
+      <div class="table-scroll"><table style="min-width:520px">
+        <thead><tr><th>項目</th><th>歐元</th><th>依據</th></tr></thead>
+        <tbody id="costs"></tbody>
+      </table></div>
+    </div>
+    <div class="box"><h3>容易漏掉的花費</h3><ul>
+      <li>旅平險要確認含高山健行與直升機搜救，台灣的一般旅平險不一定涵蓋，費用我沒查。</li>
+      <li>山屋訂金：訂了不去可能拿不回來，取消規定要先問。</li>
+      <li>睡袋內套：多數山屋要求自備，沒帶要現場買，價錢不固定。</li>
+      <li>行李：若在 Rosengarten 與 Alta Via 之間要換區，大行李寄放或寄送的費用要另外估。</li>
+      <li>Rosengarten 到 Dobbiaco 若包車或叫計程車，價錢可能是巴士的好幾倍，我沒查報價。</li>
+    </ul></div>
+  </div>
+</section>
+
+<section>
+  <h2>天氣與緊急</h2>
+  <div class="grid2">
+    <div class="box"><h3>天氣</h3><ul>
+      <li>午後常有雷雨，每天 8 點前出發，下午兩點前到山屋。</li>
+      <li>看雲底高度比降雨機率有用。Veneto 一側可看 ARPAV，Alto Adige 一側看 Meteo Südtirol，另外可用 Windy。</li>
+      <li>天氣差時，山屋主人會建議是否出發，聽他們的。</li></ul></div>
+    <div class="box"><h3>緊急</h3><ul>
+      <li>歐洲通用緊急電話 112，也適用山區救援。</li>
+      <li>確認旅平險涵蓋登山健行和直升機搜救。</li>
+      <li>每天出發前告訴山屋你們的下一站。</li></ul></div>
+  </div>
+</section>
+
+<p class="fine">此手冊依一般路線和山屋高度整理，時間、距離、爬升和營業日皆為概估，不是官方資料。標「約」的數字是估計值；Alta Via 1 前五段取自 Cicerone，Vazzoler 到 Pramperet 取自 Bookatrekking，Rosengarten 與 Sesto 的資料參考多家行程，各家差異大。地圖是示意圖，位置與距離不依比例。Vazzoler 下山到 Agordo、Gardeccia 到 Vajolet 等接駁班次我沒有查證。出發前請對照 CAI、各山屋官網和當年地圖。</p>
+</div>
+
+<div id="lb" hidden>
+  <div class="lbbox">
+    <button class="btn" id="lbclose" type="button">關閉 ✕</button>
+    <img id="lbimg" alt="">
+    <div id="lbcap"></div>
+    <div class="lbnav"><button class="btn" id="lbprev" type="button">◀ 上一張</button><button class="btn" id="lbnext" type="button">下一張 ▶</button></div>
+  </div>
+</div>
+
+<div id="modal" hidden>
+  <div class="mbox">
+    <div class="tabs">
+      <button class="btn" id="tabReal" type="button" aria-pressed="true">實際地圖</button>
+      <button class="btn" id="tabSch" type="button" aria-pressed="false">示意圖</button>
+      <button class="btn" id="viewDay" type="button">看今天</button>
+      <button class="btn" id="viewAll" type="button">看全程</button>
+      <span class="sep" aria-hidden="true">|</span>
+      <button class="btn" id="baseClean" type="button" aria-pressed="true">簡潔</button>
+      <button class="btn" id="baseSat" type="button" aria-pressed="false">衛星</button>
+      <span class="sep" aria-hidden="true">|</span>
+      <button class="btn" id="tgContour" type="button" aria-pressed="true">等高線</button>
+      <button class="btn" id="tgTrails" type="button" aria-pressed="false">步道路線</button>
+      <a class="btn" id="gmap" href="#" target="_blank" rel="noopener">用 Google 地圖看今天</a>
+      <button class="btn" id="bigclose" type="button">關閉 ✕</button>
+    </div>
+    <div id="realwrap"><div id="realmap"></div><p class="note" id="realnote"></p></div>
+    <div id="bigmap" hidden></div>
+    <p class="note" id="schnote" hidden>點地名可跳到那天。示意圖，不依比例。</p>
+    <div class="daynav">
+      <button class="btn" id="mPrev" type="button">◀ 前一天</button>
+      <span id="mDay"></span>
+      <button class="btn" id="mNext" type="button">下一天 ▶</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const LV = ["", "輕鬆", "中等", "吃力"];
+const WD = "日一二三四五六";
+const num = n => n.toLocaleString();
+
+// 示意座標 [x, y, 標籤, 標籤在點的左(l)或右(r)]，畫布 400 x 520，不依比例
+const LOC = {
+  ven: [360, 500, "威尼斯", "l"], mil: [40, 500, "米蘭", "r"], bel: [335, 462, "Belluno", "l"], ago: [172, 428, "Agordo", "r"],
+  nl: [40, 340, "Nova Levante", "r"], vaj: [100, 322, "Vajolet", "r"], san: [118, 282, "Santnerpass", "r"], alp: [82, 232, "Tierser Alpl", "r"],
+  dob: [292, 36, "Dobbiaco", "r"], loc: [346, 104, "Locatelli", "l"], cen: [378, 66, "Pian di Cengia", "l"],
+  bra: [216, 52, "Braies", "r"], bie: [206, 100, "Biella", "r"], fan: [150, 140, "Fanes", "r"], lag: [172, 186, "Lagazuoi", "r"],
+  nuv: [222, 216, "Nuvolau", "r"], fiu: [238, 264, "Città di Fiume", "r"], col: [242, 314, "Coldai", "r"], vaz: [218, 358, "Vazzoler", "r"],
+  car: [242, 398, "Carestiato", "r"], pra: [290, 426, "Pramperet", "l"], fon: [330, 446, "Pian de Fontana", "l"]
+};
+const ZONES = [["ROSENGARTEN", 8, 376], ["TRE CIME", 292, 150], ["PELMO", 280, 252], ["CIVETTA", 282, 330], ["CORTINA", 280, 206]];
+
+// st = [km, 上升 m, 下降 m]；est = 估計值；loc = 當晚位置；mv = 當天移動方式；via = 中途點（接著搭車）
+const DEF = {
+  fly: {fly: 1, sleep: "機上", lv: 0, loc: "mil"},
+  arrDob: {t: "威尼斯 → Dobbiaco", r: "搭火車或巴士，約 4~5 小時，轉乘多，時刻務必先查。鎮上休息，適應時差。", sleep: "Dobbiaco 旅館", alt: 1256, town: 1, lv: 0, loc: "dob", mv: "bus"},
+  arrBra: {t: "威尼斯 → Dobbiaco → Braies", r: "同一天趕到 Braies 湖邊，轉乘多，約 5~6 小時，時刻務必先查。9 月初湖區公路可能仍有車輛管制。", sleep: "Braies 湖邊住宿", alt: 1496, town: 1, lv: 0, loc: "bra", mv: "bus"},
+  rw1: {t: "威尼斯 → Nova Levante（Welschnofen）", r: "經 Bolzano 轉巴士，約 4 小時，轉乘多，時刻先查。鎮上休息，適應時差。", sleep: "Nova Levante 旅館", alt: 1180, town: 1, lv: 0, loc: "nl", mv: "bus"},
+  v1: {prof: [[null], [1950, "bus"], [2243, "walk"]], t: "Nova Levante → Gardeccia → Rif. Vajolet", r: "搭車到 Fassa 山谷，再接車到 Gardeccia，步行上 Rif. Vajolet。下午就在 Vajolet 三塔腳下，接駁班次要先查。", time: "車程約 2 小時，步行約 1~1.5 小時", sleep: "Rif. Vajolet", alt: 2243, lv: 1, loc: "vaj", mv: "bus", st: [3, 350, 50], est: 1},
+  v2: {t: "Rif. Vajolet → Gartlhütte → Santnerpasshütte", r: "從 Fassa 側走上去，不經鋼索。據說 Gartlhütte 在 Vajolet 之後約 1 小時，最後到山口再約 15 分鐘。在山屋看日落和日出。也可從 Kölner Hütte 走 Santner 鋼索（B/C 級）上來，要攀登裝備和經驗。", time: "約 2~3 小時", sleep: "Santnerpasshütte", alt: 2734, lv: 2, loc: "san", mv: "walk", st: [3, 550, 50], est: 1},
+  rw4: {t: "Santnerpasshütte → Gartlhütte → Vajolet → Passo Principe → Tierser Alpl", r: "走過 Rosengarten 山脊的一串山屋，最後下到 Tierser Alpl，山屋在 Alpe di Tires 上方，視野開闊。", time: "約 4~5 小時", sleep: "Tierser Alpl-Hütte", alt: 2440, lv: 2, loc: "alp", mv: "walk", st: [8, 400, 700], est: 1},
+  rw5: {we: 1250, t: "Tierser Alpl → Tires → Dobbiaco", r: "先下到 Tires 村，再轉車到 Dobbiaco，路途長，建議前一晚查好班次或包車。", time: "下山約 2~3 小時，車程 3~4 小時", sleep: "Dobbiaco 旅館", alt: 1256, town: 1, lv: 1, loc: "dob", mv: "bus", st: [8, 50, 1200], est: 1},
+  tc1: {prof: [[null], [2320, "bus"], [2405, "walk"]], t: "Misurina → Rif. Auronzo → Rif. Locatelli", r: "搭巴士到 Misurina，再接車或步行上 Auronzo，走到 Locatelli。傍晚看 Tre Cime 三峰換色。", time: "約 3 小時", sleep: "Rif. Locatelli", alt: 2405, lv: 1, loc: "loc", mv: "walk", st: [7, 300, 200], est: 1},
+  tc2: {prof: [[null], [2320, "walk"], [1256, "bus"], [1496, "bus"]], t: "Tre Cime 環線 → 轉往 Braies", r: "日出後走環線，下山搭車回 Dobbiaco，再轉巴士到 Braies。9 月初湖區公路可能仍有車輛管制，要先查。", time: "約 3~4 小時", sleep: "Braies 湖邊住宿", alt: 1496, town: 1, lv: 1, loc: "bra", mv: "bus", st: [7, 250, 450], est: 1},
+  s2: {t: "Rif. Locatelli → Tre Cime 環線 → Rif. Pian di Cengia", r: "有來源說 Pian di Cengia 是 Sesto Dolomites 最高的山屋，比較樸素，視野可看 Sesto 日晷峰群。從 Locatelli 約 1 小時可到。", time: "約 2~3 小時", sleep: "Rif. Pian di Cengia", alt: 2530, lv: 1, loc: "cen", mv: "walk", st: [6, 350, 250], est: 1},
+  s3: {we: 1450, t: "Pian di Cengia → Rif. Comici → Fischleintal → Braies", r: "下到 Fischleintal 搭車，經 Dobbiaco 轉到 Braies。這天交通長，班次要先查。", time: "步行約 3 小時，車程約 3 小時", sleep: "Braies 湖邊住宿", alt: 1496, town: 1, lv: 1, loc: "bra", mv: "bus", st: [8, 50, 1000], est: 1},
+  a1: {t: "Lago di Braies → Rif. Biella", r: "Alta Via 1 正式起點，先爬一個大坡，上到 Seekofel 下方。", time: "約 4~5 小時", sleep: "Rif. Biella", alt: 2327, lv: 2, loc: "bie", mv: "walk", st: [6, 870, 60]},
+  a2: {t: "Rif. Biella → Rif. Fanes", r: "穿越高原和石灰岩台地，路線開闊。", time: "約 6 小時", sleep: "Rif. Fanes", alt: 2060, lv: 2, loc: "fan", mv: "walk", st: [13, 710, 980]},
+  a3: {t: "Rif. Fanes → Rif. Lagazuoi", r: "全程最高的過夜點之一，日落和日出都值得。隔天可走一戰坑道，要帶頭燈。", time: "約 6 小時", sleep: "Rif. Lagazuoi", alt: 2752, lv: 2, loc: "lag", mv: "walk", st: [12, 1150, 450]},
+  a4: {t: "Rif. Lagazuoi → Cinque Torri → Rif. Nuvolau", r: "經過 Cinque Torri 岩塔群，Nuvolau 是圓形的老山屋，視野 360 度。", time: "約 5 小時", sleep: "Rif. Nuvolau", alt: 2575, lv: 2, loc: "nuv", mv: "walk", st: [13, 1100, 1275]},
+  buf1: {t: "緩衝日：Nuvolau 多住一晚", r: "天氣好就當休息日，不走路；天氣差就把行程順延。也可搭巴士下 Cortina 洗衣補給，隔天再上來。", sleep: "Rif. Nuvolau", alt: 2575, lv: 0, rest: 1, loc: "nuv"},
+  a5: {t: "Rif. Nuvolau → Croda da Lago → Rif. Città di Fiume", r: "路過 Croda da Lago 湖，正對 Pelmo 巨壁。", time: "約 6 小時", sleep: "Rif. Città di Fiume", alt: 1917, lv: 2, loc: "fiu", mv: "walk", st: [13, 500, 1200]},
+  a6: {t: "Rif. Città di Fiume → Rif. Coldai", r: "繞過 Pelmo，抵達 Civetta 北壁腳下，山屋旁有小湖。", time: "約 6 小時", sleep: "Rif. Coldai", alt: 2132, lv: 2, loc: "col", mv: "walk", st: [15, 900, 700], est: 1},
+  a7: {t: "Rif. Coldai → Rif. Vazzoler", r: "沿著 Civetta 西壁走，景色壯觀，路況順。", time: "約 5 小時", sleep: "Rif. Vazzoler", alt: 1714, lv: 2, loc: "vaz", mv: "walk", st: [10, 300, 700], est: 1},
+  buf2: {t: "緩衝日：Vazzoler 多住一晚", r: "進入較難的南段之前，或準備下山之前，先休息一天，也能補天氣的缺。", sleep: "Rif. Vazzoler", alt: 1714, lv: 0, rest: 1, loc: "vaz"},
+  kro: {t: "Kronplatz：MMM Corones 與 LUMEN", sleep: "Dobbiaco 旅館", alt: 1256, town: 1, lv: 1, loc: "dob", mv: "bus", prof: [[null], [2275, "bus"], [1256, "bus"]]},
+  milArch: {t: "米蘭建築日", sleep: "米蘭機場旅館", alt: 130, town: 1, lv: 1, loc: "mil"},
+  x1: {we: 600, t: "Rif. Vazzoler 下山 → Agordo → 威尼斯", r: "從 Vazzoler 下山，搭巴士到 Agordo 或 Belluno，再轉火車回威尼斯。下山路線與班次我沒查證，行前要確認。", time: "下山約 2~3 小時，交通約 3 小時", sleep: "米蘭機場旅館", alt: 130, town: 1, lv: 1, loc: "mil", mv: "walk", via: "ago", st: [6, 0, 800], est: 1},
+};
+// 照片：全部來自 Wikimedia Commons，授權與攝影者列在大圖下方
+const PH = {"kronplatz":{"l":"Kronplatz 與 MMM Corones","i":[{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/9/91/Messner_Mountain_Museum_am_Kronplatz.JPG/960px-Messner_Mountain_Museum_am_Kronplatz.JPG","a":"Marco Almbauer","c":"CC BY 3.0","p":"https://commons.wikimedia.org/wiki/File:Messner_Mountain_Museum_am_Kronplatz.JPG"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/I07_804_Kronplatz.jpg/960px-I07_804_Kronplatz.jpg","a":"Falk2","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:I07_804_Kronplatz.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/J40_236_Kronplatz.jpg/960px-J40_236_Kronplatz.jpg","a":"Falk2","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:J40_236_Kronplatz.jpg"}]},"milano":{"l":"米蘭建築","i":[{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/2/24/Milan_skyline_with_Unicredit_Tower_and_Bosco_Verticale.jpg/960px-Milan_skyline_with_Unicredit_Tower_and_Bosco_Verticale.jpg","a":"Daniel Case","c":"CC BY-SA 3.0","p":"https://commons.wikimedia.org/wiki/File:Milan_skyline_with_Unicredit_Tower_and_Bosco_Verticale.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/3/31/Veduta_delle_tre_torri_del_quartiere_Citylife_a_Milano.jpg/960px-Veduta_delle_tre_torri_del_quartiere_Citylife_a_Milano.jpg","a":"Paolobon140","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Veduta_delle_tre_torri_del_quartiere_Citylife_a_Milano.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8f/Fondazione_prada%2C_milano%2C_galleria_sud_%28quadreria%29_01.JPG/960px-Fondazione_prada%2C_milano%2C_galleria_sud_%28quadreria%29_01.JPG","a":"Sailko","c":"CC BY 3.0","p":"https://commons.wikimedia.org/wiki/File:Fondazione_prada,_milano,_galleria_sud_(quadreria)_01.JPG"}]},"venezia":{"l":"威尼斯大運河","i":[{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/Panorama_of_Canal_Grande_and_Ponte_di_Rialto%2C_Venice_-_September_2017.jpg/960px-Panorama_of_Canal_Grande_and_Ponte_di_Rialto%2C_Venice_-_September_2017.jpg","a":"Martin Falbisoner","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Panorama_of_Canal_Grande_and_Ponte_di_Rialto,_Venice_-_September_2017.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a3/Canal_Grande_Chiesa_della_Salute_e_Dogana_dal_ponte_dell_Accademia.jpg/960px-Canal_Grande_Chiesa_della_Salute_e_Dogana_dal_ponte_dell_Accademia.jpg","a":"This Photo was taken by Wolfgang Moroder","c":"CC BY-SA 3.0","p":"https://commons.wikimedia.org/wiki/File:Canal_Grande_Chiesa_della_Salute_e_Dogana_dal_ponte_dell_Accademia.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b8/Ponte_dell%27Accademia_Canal_Grande_Venezia.jpg/960px-Ponte_dell%27Accademia_Canal_Grande_Venezia.jpg","a":"This Photo was taken by Wolfgang Moroder","c":"CC BY-SA 3.0","p":"https://commons.wikimedia.org/wiki/File:Ponte_dell%27Accademia_Canal_Grande_Venezia.jpg"}]},"nl":{"l":"Nova Levante 與 Latemar","i":[{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/Lago_di_Carezza_and_Latemar%2C_Carezza%2C_Trentino-Alto_Adige%2C_Italy%2C_2025_October.jpg/960px-Lago_di_Carezza_and_Latemar%2C_Carezza%2C_Trentino-Alto_Adige%2C_Italy%2C_2025_October.jpg","a":"Ximonic (Simo Räsänen)","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Lago_di_Carezza_and_Latemar,_Carezza,_Trentino-Alto_Adige,_Italy,_2025_October.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/Welschnofen_Latemar_%26_Karersee_1.jpg/960px-Welschnofen_Latemar_%26_Karersee_1.jpg","a":"Zairon","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Welschnofen_Latemar_%26_Karersee_1.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/5/56/Welschnofen_1.jpg/960px-Welschnofen_1.jpg","a":"Piergiuliano Chesi","c":"CC BY 3.0","p":"https://commons.wikimedia.org/wiki/File:Welschnofen_1.jpg"}]},"vajolet":{"l":"Rifugio Vajolet 與 Vajolet 三塔","i":[{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/0/03/Rifugio_Re_Alberto_e_torri_del_Vajolet_02.jpg/960px-Rifugio_Re_Alberto_e_torri_del_Vajolet_02.jpg","a":"Syrio","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Rifugio_Re_Alberto_e_torri_del_Vajolet_02.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ef/Rifugio_Vajolet_04.jpg/960px-Rifugio_Vajolet_04.jpg","a":"Syrio","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Rifugio_Vajolet_04.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e1/Rifugi_Vajolet_e_Preuss_01.jpg/960px-Rifugi_Vajolet_e_Preuss_01.jpg","a":"Syrio","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Rifugi_Vajolet_e_Preuss_01.jpg"}]},"santner":{"l":"Santnerpasshütte","i":[{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f4/Croda_Di_Re_Laurino_e_Rifugio_Passo_Santner.jpg/960px-Croda_Di_Re_Laurino_e_Rifugio_Passo_Santner.jpg","a":"Anna Marchenkova","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Croda_Di_Re_Laurino_e_Rifugio_Passo_Santner.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0c/Rifugio_Passo_Santner.jpg/960px-Rifugio_Passo_Santner.jpg","a":"Anna Marchenkova","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Rifugio_Passo_Santner.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c0/Vista_verso_Nova_Levante_dal_Rifugio_Passo_Santner_02.jpg/960px-Vista_verso_Nova_Levante_dal_Rifugio_Passo_Santner_02.jpg","a":"Syrio","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Vista_verso_Nova_Levante_dal_Rifugio_Passo_Santner_02.jpg"}]},"alpl":{"l":"Tierser Alpl-Hütte","i":[{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/7/73/Tierser-Alpl-H%C3%BCtte%2C_2444_m%2C_2018-10-19.jpg/960px-Tierser-Alpl-H%C3%BCtte%2C_2444_m%2C_2018-10-19.jpg","a":"2015 Michael 2015","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Tierser-Alpl-H%C3%BCtte,_2444_m,_2018-10-19.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Rossz%C3%A4hne_Tierser_Alpl_Panorama.jpg/960px-Rossz%C3%A4hne_Tierser_Alpl_Panorama.jpg","a":"Ansgar Koreng","c":"CC BY-SA 3.0 de","p":"https://commons.wikimedia.org/wiki/File:Rossz%C3%A4hne_Tierser_Alpl_Panorama.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fa/140626_Tierser_Alpl_Rossz%C3%A4hne.jpg/960px-140626_Tierser_Alpl_Rossz%C3%A4hne.jpg","a":"Ansgar Koreng","c":"CC BY 3.0 de","p":"https://commons.wikimedia.org/wiki/File:140626_Tierser_Alpl_Rossz%C3%A4hne.jpg"}]},"dobbiaco":{"l":"Dobbiaco 湖","i":[{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b4/Toblacher_See_2021-10-28.jpg/960px-Toblacher_See_2021-10-28.jpg","a":"2015 Michael 2015","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Toblacher_See_2021-10-28.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/4/49/Lago_di_Dobbiaco.jpg/960px-Lago_di_Dobbiaco.jpg","a":"Wikimedia Commons","c":"CC BY-SA 3.0","p":"https://commons.wikimedia.org/wiki/File:Lago_di_Dobbiaco.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Toblach_Toblacher_See_02.jpg/960px-Toblach_Toblacher_See_02.jpg","a":"Zairon","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Toblach_Toblacher_See_02.jpg"}]},"locatelli":{"l":"Rifugio Locatelli","i":[{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b7/Tre_cime_-_rifugio_Locatelli.jpg/960px-Tre_cime_-_rifugio_Locatelli.jpg","a":"Elio Pallard","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Tre_cime_-_rifugio_Locatelli.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5d/Drei_Zinnen_mit_Dreizinnenh%C3%BCtte.jpg/960px-Drei_Zinnen_mit_Dreizinnenh%C3%BCtte.jpg","a":"Je-str","c":"CC BY-SA 3.0","p":"https://commons.wikimedia.org/wiki/File:Drei_Zinnen_mit_Dreizinnenh%C3%BCtte.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/6/62/Refugio_Locatelli_02.jpg/960px-Refugio_Locatelli_02.jpg","a":"Felvalen","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Refugio_Locatelli_02.jpg"}]},"trecime":{"l":"Tre Cime di Lavaredo","i":[{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4e/Drei_Zinnen_Tre_Cime_di_Lavaredo_Dolomites.jpg/960px-Drei_Zinnen_Tre_Cime_di_Lavaredo_Dolomites.jpg","a":"This Photo was taken by Wolfgang Moroder","c":"CC BY-SA 3.0","p":"https://commons.wikimedia.org/wiki/File:Drei_Zinnen_Tre_Cime_di_Lavaredo_Dolomites.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/Lago_di_Misurina_Tre_Cime_di_Lavaredo_1.jpg/960px-Lago_di_Misurina_Tre_Cime_di_Lavaredo_1.jpg","a":"kallerna","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Lago_di_Misurina_Tre_Cime_di_Lavaredo_1.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/3/38/Lago_di_Lavaredo_1.jpg/960px-Lago_di_Lavaredo_1.jpg","a":"kallerna","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Lago_di_Lavaredo_1.jpg"}]},"cengia":{"l":"Pian di Cengia（Büllelejochhütte）","i":[{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/B%C3%BCllelejochh%C3%BCtte%2C_2528_m.jpg/960px-B%C3%BCllelejochh%C3%BCtte%2C_2528_m.jpg","a":"2015 Michael 2015","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:B%C3%BCllelejochh%C3%BCtte,_2528_m.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6d/B%C3%BCllelejochh%C3%BCtte.jpg/960px-B%C3%BCllelejochh%C3%BCtte.jpg","a":"PaddyFH","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:B%C3%BCllelejochh%C3%BCtte.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/B%C3%BCllelejoch_%E2%80%93_karst_plateau_with_the_B%C3%BCllelejochh%C3%BCtte.jpg/960px-B%C3%BCllelejoch_%E2%80%93_karst_plateau_with_the_B%C3%BCllelejochh%C3%BCtte.jpg","a":"Punteador","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:B%C3%BCllelejoch_%E2%80%93_karst_plateau_with_the_B%C3%BCllelejochh%C3%BCtte.jpg"}]},"sesto":{"l":"Fischleintal（Sesto）","i":[{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ee/Fischleintal_Sextener_Sonnenuhr.JPG/960px-Fischleintal_Sextener_Sonnenuhr.JPG","a":"Steinsplitter","c":"CC BY-SA 3.0","p":"https://commons.wikimedia.org/wiki/File:Fischleintal_Sextener_Sonnenuhr.JPG"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/7/77/Fischleintal_Sexten-2.jpg/960px-Fischleintal_Sexten-2.jpg","a":"Rufus46","c":"CC BY-SA 3.0","p":"https://commons.wikimedia.org/wiki/File:Fischleintal_Sexten-2.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5f/L%C3%A4rchenwiesen_Fischleintal.JPG/960px-L%C3%A4rchenwiesen_Fischleintal.JPG","a":"Steinsplitter","c":"CC BY-SA 3.0","p":"https://commons.wikimedia.org/wiki/File:L%C3%A4rchenwiesen_Fischleintal.JPG"}]},"braies":{"l":"Lago di Braies","i":[{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/7/71/Lago_di_Braies_South_Tyrol_3.jpg/960px-Lago_di_Braies_South_Tyrol_3.jpg","a":"kallerna","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Lago_di_Braies_South_Tyrol_3.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d6/Lago_di_Braies_South_Tyrol_7.jpg/960px-Lago_di_Braies_South_Tyrol_7.jpg","a":"kallerna","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Lago_di_Braies_South_Tyrol_7.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/Pragser_Wildsee_und_Seekofel_2.jpg/960px-Pragser_Wildsee_und_Seekofel_2.jpg","a":"STirol","c":"CC BY-SA 3.0","p":"https://commons.wikimedia.org/wiki/File:Pragser_Wildsee_und_Seekofel_2.jpg"}]},"biella":{"l":"Rifugio Biella","i":[{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/Rifugio_Biella.JPG/960px-Rifugio_Biella.JPG","a":"Llorenzi","c":"CC BY-SA 3.0","p":"https://commons.wikimedia.org/wiki/File:Rifugio_Biella.JPG"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cc/Croda_del_Becco_and_Rifugio_Biella_202008.jpg/960px-Croda_del_Becco_and_Rifugio_Biella_202008.jpg","a":"Marie-Lan Taÿ Pamart","c":"CC BY 4.0","p":"https://commons.wikimedia.org/wiki/File:Croda_del_Becco_and_Rifugio_Biella_202008.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c4/Rifugio_Biella_Dolomiti.JPG/960px-Rifugio_Biella_Dolomiti.JPG","a":"Number 21","c":"CC BY-SA 3.0","p":"https://commons.wikimedia.org/wiki/File:Rifugio_Biella_Dolomiti.JPG"}]},"fanes":{"l":"Rifugio Fanes","i":[{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f4/Rifugio_Fanes_01.JPG/960px-Rifugio_Fanes_01.JPG","a":"Bbruno","c":"CC BY-SA 3.0","p":"https://commons.wikimedia.org/wiki/File:Rifugio_Fanes_01.JPG"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/Blick_von_der_Fanesh%C3%BCtte.JPG/960px-Blick_von_der_Fanesh%C3%BCtte.JPG","a":"Susanne Tomkovic (Suto)","c":"CC BY-SA 3.0","p":"https://commons.wikimedia.org/wiki/File:Blick_von_der_Fanesh%C3%BCtte.JPG"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6d/L%27ambiente_attorno_al_rifugio_Fanes.jpg/960px-L%27ambiente_attorno_al_rifugio_Fanes.jpg","a":"Yreen","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:L%27ambiente_attorno_al_rifugio_Fanes.jpg"}]},"lagazuoi":{"l":"Rifugio Lagazuoi","i":[{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/8/82/Rifugio_Lagazuoi%2C_Passo_Falzarego_BL%2C_Dolomiti%2C_Italia_by_Marco_Zaffignani.jpg/960px-Rifugio_Lagazuoi%2C_Passo_Falzarego_BL%2C_Dolomiti%2C_Italia_by_Marco_Zaffignani.jpg","a":"Marco Zaffignani","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Rifugio_Lagazuoi,_Passo_Falzarego_BL,_Dolomiti,_Italia_by_Marco_Zaffignani.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/7/73/Rifugio_Lagazuoi_%28_Lagazoi%29_2752m_-_View_from_Falzarego%2C_Civetta%2C_Pelmo...._-_panoramio.jpg/960px-Rifugio_Lagazuoi_%28_Lagazoi%29_2752m_-_View_from_Falzarego%2C_Civetta%2C_Pelmo...._-_panoramio.jpg","a":"Zoran Kurelić Rabko","c":"CC BY-SA 3.0","p":"https://commons.wikimedia.org/wiki/File:Rifugio_Lagazuoi_(_Lagazoi)_2752m_-_View_from_Falzarego,_Civetta,_Pelmo...._-_panoramio.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/Lagazuoi_05.jpg/960px-Lagazuoi_05.jpg","a":"Clemens Stockner","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Lagazuoi_05.jpg"}]},"nuvolau":{"l":"Rifugio Nuvolau","i":[{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/Rifugio_Nuvolau_Dolomiti.JPG/960px-Rifugio_Nuvolau_Dolomiti.JPG","a":"gogolander","c":"CC BY-SA 3.0","p":"https://commons.wikimedia.org/wiki/File:Rifugio_Nuvolau_Dolomiti.JPG"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/View_from_Rifugio_Nuvolau.jpg/960px-View_from_Rifugio_Nuvolau.jpg","a":"jokin.lacalle","c":"CC BY 4.0","p":"https://commons.wikimedia.org/wiki/File:View_from_Rifugio_Nuvolau.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b7/5torri_illuminate_dal_rifugio_Nuvolau.jpg/960px-5torri_illuminate_dal_rifugio_Nuvolau.jpg","a":"Madame74","c":"CC BY-SA 3.0","p":"https://commons.wikimedia.org/wiki/File:5torri_illuminate_dal_rifugio_Nuvolau.jpg"}]},"fiume":{"l":"Rifugio Città di Fiume","i":[{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2e/Rifugio_Citt%C3%A0_di_Fiume_2.jpg/960px-Rifugio_Citt%C3%A0_di_Fiume_2.jpg","a":"Triedros","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Rifugio_Citt%C3%A0_di_Fiume_2.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/1/14/Rifugio_citta_di_fiume.JPG/960px-Rifugio_citta_di_fiume.JPG","a":"Dirgela","c":"CC BY-SA 3.0","p":"https://commons.wikimedia.org/wiki/File:Rifugio_citta_di_fiume.JPG"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3e/Corda-da-Lago_2815b.jpg/960px-Corda-da-Lago_2815b.jpg","a":"Rüdiger Kratz, St. Ingbert","c":"CC BY-SA 3.0","p":"https://commons.wikimedia.org/wiki/File:Corda-da-Lago_2815b.jpg"}]},"coldai":{"l":"Lago Coldai","i":[{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/Lago_Coldai_2.jpg/960px-Lago_Coldai_2.jpg","a":"kallerna","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Lago_Coldai_2.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/Lago_Coldai_5.jpg/960px-Lago_Coldai_5.jpg","a":"kallerna","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Lago_Coldai_5.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9a/Lago_Coldai_7.jpg/960px-Lago_Coldai_7.jpg","a":"kallerna","c":"CC BY-SA 4.0","p":"https://commons.wikimedia.org/wiki/File:Lago_Coldai_7.jpg"}]},"vazzoler":{"l":"Rifugio Vazzoler 與 Civetta","i":[{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0c/IMG_0058_Rif._Mario_Vazzoler.JPG/960px-IMG_0058_Rif._Mario_Vazzoler.JPG","a":"Matteo Tani","c":"公有領域","p":"https://commons.wikimedia.org/wiki/File:IMG_0058_Rif._Mario_Vazzoler.JPG"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/2/21/Rifugio_Vazzoler%2C_32027_Taibon_Agordino%2C_Province_of_Belluno%2C_Italy.jpg/960px-Rifugio_Vazzoler%2C_32027_Taibon_Agordino%2C_Province_of_Belluno%2C_Italy.jpg","a":"Hans Braam","c":"CC BY 3.0","p":"https://commons.wikimedia.org/wiki/File:Rifugio_Vazzoler,_32027_Taibon_Agordino,_Province_of_Belluno,_Italy.jpg"},{"u":"https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8f/MonteCivetta.jpg/960px-MonteCivetta.jpg","a":"Stipy","c":"CC BY-SA 3.0","p":"https://commons.wikimedia.org/wiki/File:MonteCivetta.jpg"}]}};
+const DAYPH = {arrDob: ["dobbiaco"], rw1: ["nl"], v1: ["vajolet"], v2: ["santner"], rw4: ["alpl"], rw5: ["alpl", "dobbiaco"], tc1: ["locatelli"], tc2: ["trecime"], s2: ["cengia", "trecime"], s3: ["sesto", "braies"], a1: ["biella", "braies"], a2: ["fanes"], a3: ["lagazuoi"], a4: ["nuvolau", "lagazuoi"], buf1: ["nuvolau"], a5: ["fiume"], a6: ["coldai"], a7: ["vazzoler", "coldai"], buf2: ["vazzoler"], x1: ["venezia", "vazzoler"], kro: ["kronplatz"], milArch: ["milano"]};
+function photosFor(id) {
+  const ks = DAYPH[id] || [], out = [];
+  for (let n = 0; out.length < 3 && n < 3; n++) ks.forEach(k => { const p = PH[k].i[n]; if (p && out.length < 3) out.push({...p, l2: PH[k].l}); });
+  return out;
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const gimg = x => "https://www.google.com/search?tbm=isch&q=" + encodeURIComponent(x.ph[0].l2 + " Dolomites");
+const phBtn = (x, j, kind) => { const p = x.ph[j]; return `<button class="ph ph-${kind}" type="button" data-ph="${x.d},${j}" aria-label="放大照片：${esc(p.l2)}"><img src="${p.u}" alt="${esc(p.l2)}" loading="lazy" decoding="async">${kind === "lead" && x.ph.length > 1 ? `<span>+${x.ph.length - 1}</span>` : ""}</button>`; };
+let lb = {d: 0, j: 0};
+function lbShow(d, j) {
+  const x = days[d], n = x.ph.length, k = ((j % n) + n) % n, p = x.ph[k];
+  lb = {d, j: k};
+  $("#lbimg").src = p.u; $("#lbimg").alt = p.l2;
+  $("#lbcap").innerHTML = `<b>${esc(p.l2)}</b>（${k + 1} / ${n}）<small>攝影：${esc(p.a)} · ${esc(p.c)} · <a href="${p.p}" target="_blank" rel="noopener">Wikimedia Commons</a> · <a href="${gimg(x)}" target="_blank" rel="noopener">更多照片（Google 圖片）</a></small>`;
+  $("#lbprev").hidden = $("#lbnext").hidden = n < 2;
+  $("#lb").hidden = false;
+}
+
+// 每天的時間表、警告與備案。時間是預估的行程安排，不是班次；班次與票價以官方為準
+const STEPS = {
+  arrDob: {t: "米蘭 → Bolzano → Dobbiaco", o: "Milano Malpensa → Milano Centrale → Verona Porta Nuova → Bolzano / Bozen → Fortezza / Franzensfeste → Dobbiaco / Toblach", r: "整天都在轉車，約 7~8 小時，轉乘多。", time: "交通約 7~8 小時（未查證）",
+    s: [["落地後", "抵達 Malpensa，非歐盟入境查驗與領行李預留 75 分鐘"], ["+1:15", "Malpensa Express → Milano Centrale（約 50 分，未查證）"], ["上午", "Milano Centrale → Verona Porta Nuova（約 1 小時 13 分，每小時一班）"], ["中午", "Verona → Bolzano（快車約 1.5 小時）", 1], ["下午", "Bolzano → Fortezza → Dobbiaco（約 2 小時，我沒查證）", 1], ["晚上", "Dobbiaco 鎮上，補給與換現金"]],
+    w: "<b>班機到達時間決定能不能接上班次。</b>太晚就在 Bolzano 過夜，隔天再走。這天的班次我都沒查證，行前要排好整條。",
+    a: "備案：馬爾彭薩機場有巴士直達 Bolzano，約 4 小時 37 分（Rome2Rio 的數字），再轉車到 Dobbiaco。"},
+  rw1: {t: "米蘭 → Bolzano → Nova Levante（Welschnofen）", o: "Milano Malpensa → Milano Centrale → Verona Porta Nuova → Bolzano / Bozen → Welschnofen / Nova Levante", r: "整天轉車，約 6~7 小時。鎮上休息，適應時差。", time: "交通約 6~7 小時（未查證）",
+    s: [["落地後", "抵達 Malpensa，非歐盟入境查驗與領行李預留 75 分鐘"], ["+1:15", "Malpensa Express → Milano Centrale（約 50 分，未查證）"], ["上午", "Milano Centrale → Verona Porta Nuova（約 1 小時 13 分，每小時一班）"], ["中午", "Verona → Bolzano（快車約 1.5 小時）", 1], ["下午", "Bolzano 轉巴士 → Nova Levante（約 45~60 分，我沒查證）", 1], ["晚上", "鎮上補給，確認隔天往 Fassa 山谷的交通"]],
+    w: "<b>整天都在轉車，班次我沒查證。</b>行前先在 trenitalia.com 與 suedtirolmobil.info 排好整條轉乘；班機太晚到就在 Bolzano 過夜。",
+    a: "備案：馬爾彭薩機場有巴士直達 Bolzano，約 4 小時 37 分（Rome2Rio 的數字）。"},
+  v1: {t: "Nova Levante → Vigo di Fassa → Ciampedie → Gardeccia → Rif. Vajolet", o: "Welschnofen / Nova Levante → Passo di Costalunga → Vigo di Fassa → Ciampedie → Gardeccia 約 1,950 m → Rifugio Vajolet 2,243 m", r: "搭車到 Fassa 山谷，坐纜車上 Ciampedie，走到 Gardeccia，再上 Rif. Vajolet。", time: "車程與纜車約 2.5 小時，步行約 2~2.5 小時",
+    s: [["08:30", "Nova Levante 搭巴士越 Costalunga 山口 → Vigo di Fassa（約 1.5 小時，未查證）"], ["10:30", "Vigo → Ciampedie 纜車（2019 年資料來回約 €18，現價要查）", 1], ["11:00", "Ciampedie 走 540 號步道 → Gardeccia（約 50~60 分）"], ["12:30", "Gardeccia 午餐，再走往 Rif. Vajolet（約 1 小時）"], ["15:00", "抵達 Rif. Vajolet，辦入住"], ["傍晚", "Vajolet 三塔在山屋正後方，日落前後最好看"]],
+    n: ["Gardeccia 到 Vajolet 的路是出發往 Rosengarten 腹地的主要步道，下午人會變少，傍晚剩住宿客。"],
+    w: "<b>Pera 到 Gardeccia 的接駁小巴已停駛</b>（2019 年資料），不要預設有車。纜車末班時間要先查，錯過就得多走很長一段。"},
+  v2: {o: "Rifugio Vajolet 2,243 m → Gartlhütte / Rif. Re Alberto I 2,621 m → Santnerpasshütte / Rif. Passo Santner 2,734 m", r: "從 Fassa 側走上去，不經鋼索。", time: "約 2~3 小時",
+    s: [["08:00", "早餐後出發，往 Gartlhütte（約 1 小時）"], ["09:30", "Gartlhütte 休息，補水"], ["10:30", "往 Santnerpass 最後一段（約 15~40 分）"], ["11:30", "抵達 Santnerpasshütte，放行李"], ["午後", "休息、拍照；這天不用趕"], ["日落前", "提早 30 分鐘到隘口卡位，看 Vajolet 三塔"]],
+    n: ["Santnerpasshütte 在 Santnerpass，山屋 1956 年建成，夏季營業。隘口兩側都是陡坡，風大時溫度會降得很快。", "<b>enrosadira</b>：白雲岩在低角度光線下會變粉紅，通常出現在日落前後。日落後那十幾分鐘常是最紅的，不要太早離開隘口。"],
+    w: "<b>不走 Santner 鋼索（B/C 級）。</b>有評論提到短時間內有人墜落，除非有攀登經驗與裝備，一律走 Fassa 側步道；濕滑、起霧或有殘雪時都不要上。"},
+  rw4: {o: "Santnerpasshütte → Gartlhütte → Rifugio Vajolet → Passo Principe / Grasleitenpass → Tierser Alpl-Hütte / Rif. Alpe di Tires 2,440 m", r: "走過 Rosengarten 山脊的一串山屋，最後下到 Tierser Alpl。",
+    s: [["08:00", "早餐後出發，下到 Gartlhütte 一帶"], ["10:00", "經 Vajolet 與 Preuss 山屋，補水"], ["11:30", "上 Passo Principe，往 Molignon 方向"], ["14:00", "下到 Tierser Alpl（共約 4~5 小時）", 1], ["傍晚", "Tierser Alpl 在 Alpe di Tires 上方，視野開闊"]],
+    n: ["Tierser Alpl-Hütte 1963 年建成，2015 年整修，山屋所在的鞍部是多條步道交會處。"],
+    w: "<b>稜線上午後常有雷雨</b>，下午兩點前要進山屋，天氣轉壞就在 Vajolet 一帶先停。"},
+  rw5: {o: "Tierser Alpl 2,440 m → Tires / Tiers → Bolzano / Bozen → Dobbiaco / Toblach 1,256 m", r: "先下到 Tires，再轉車到 Dobbiaco，路途長。",
+    s: [["08:00", "早餐後下山到 Tires（約 2~3 小時）"], ["11:30", "Tires 找巴士或計程車，往 Bolzano 方向", 1], ["約 15:00~17:00", "轉車到 Dobbiaco（車程 3~4 小時，我沒查到班次）", 1], ["晚上", "Dobbiaco 鎮上休息，備好隔天的現金"]],
+    w: "<b>Tires 到 Dobbiaco 沒有直達班次，這天最容易出問題。</b>前一晚先問山屋能不能幫忙叫計程車，並訂好 Dobbiaco 住宿；到站太晚就在 Bolzano 過夜。"},
+  tc1: {o: "Dobbiaco / Toblach → Misurina → Rifugio Auronzo 2,320 m → Rifugio Lavaredo → Rifugio Locatelli / Dreizinnenhütte 2,405 m", r: "搭巴士到 Misurina，轉接駁車上 Rif. Auronzo，再走到 Locatelli。",
+    s: [["08:00", "Dobbiaco 搭巴士往 Misurina 方向（轉乘要查）", 1], ["10:00", "Misurina Genzianella 搭接駁車 → Rif. Auronzo（2026 年資料，一人 €10，一天有效）", 1], ["10:30", "Auronzo 走 101 號步道，經 Lavaredo 到 Locatelli（約 1.5~2 小時）"], ["12:30", "Locatelli 午餐，下午繞 Tre Cime 或休息"], ["傍晚", "三峰換色，在山屋露台看最方便"]],
+    n: ["Tre Cime 三峰的北壁在九月整天幾乎曬不到太陽（我依太陽位置判斷，不是實測），從山屋看，光線好的時段是清晨與傍晚。"],
+    w: "<b>接駁車有來源說要預約，旺季會滿</b>。末班約 19:15，但我們住山上，不用趕。"},
+  tc2: {t: "Tre Cime 環線 → 轉往 Braies", o: "Rifugio Locatelli → Tre Cime di Lavaredo / Drei Zinnen 環線 → Rifugio Auronzo → Misurina → Dobbiaco → Lago di Braies / Pragser Wildsee 1,496 m", r: "日出後走環線，搭接駁車回 Misurina，再轉巴士經 Dobbiaco 到 Braies。", time: "步行約 3~4 小時，車程約 3 小時",
+    s: [["07:00", "日出後走 Tre Cime 環線（約 3~4 小時含拍照）"], ["11:30", "回 Auronzo，接駁車 → Misurina", 1], ["13:00", "巴士 → Dobbiaco，再轉 442 號 → Braies（我沒逐班查證）", 1], ["16:00 後", "抵達 Braies 湖邊住宿"]],
+    w: "<b>Braies 谷有車輛管制：</b>2026 年是 7/1~9/15 的 9:00~16:00，442 號巴士在此時段要網路預約，客卡與 Mobilcard 不通用（各來源日期不一致）。2027 年規則要先查，抵達時間最好排在 16:00 之後。"},
+  s2: {o: "Rifugio Locatelli 2,405 m → Rifugio Pian di Cengia / Büllelejochhütte 2,528 m", r: "走到 Sesto Dolomites 最高的山屋，比較樸素。", time: "約 2~3 小時",
+    s: [["08:00", "早餐後出發往 Pian di Cengia（Locatelli 過去約 1 小時，含環線約 2~3 小時）"], ["10:30", "抵達 Pian di Cengia，放行李"], ["下午", "可加走 Croda Fiscalina 側峰（約 20 分的岔路）"], ["傍晚", "看 Sesto 日晷峰群"]],
+    w: "<b>Pian di Cengia 只接受電話預約，約 15 床</b>。有來源寫營業到 9/15，日期要確認。"},
+  s3: {t: "Pian di Cengia → Rif. Comici → Fischleintal → Braies", o: "Pian di Cengia → Rifugio Zsigmondy-Comici → Fischleintal / Val Fiscalina → Dobbiaco → Lago di Braies / Pragser Wildsee 1,496 m", r: "下到 Fischleintal 搭車，經 Dobbiaco 轉到 Braies。", time: "步行約 3 小時，車程約 3 小時",
+    s: [["07:30", "早餐後下往 Rif. Comici（約 1 小時）"], ["09:30", "續下到 Fischleintal（約 2 小時）"], ["12:00", "搭巴士 → San Candido 或 Dobbiaco，再轉 442 → Braies（約 3 小時）", 1]],
+    w: "<b>這天交通長，我沒有班次資料。</b>Braies 管制規則同上（2026 年 7/1~9/15 的 9:00~16:00 要預約）。"},
+  a1: {o: "Lago di Braies / Pragser Wildsee 1,496 m → Rifugio Biella / Seekofelhütte 2,327 m", r: "Alta Via 1 正式起點，先爬一個大坡。",
+    s: [["07:30", "Braies 湖邊早餐，湖面清晨人最少"], ["08:00", "走 Alta Via 1 起點，沿 1 號步道往 Biella"], ["12:00", "抵達 Rif. Biella（約 4~5 小時）"], ["下午", "休息；晚餐約 18:00~19:00"]],
+    n: ["Lago di Braies 是多洛米地最熱門的湖之一，白天人潮多，清晨出發能避開。"],
+    w: "<b>全程第一個大坡（約 +870 m）</b>，不要走太快，水至少帶 1.5 公升。"},
+  a2: {o: "Rifugio Biella 2,327 m → Rifugio Fanes 2,060 m", r: "穿越高原與石灰岩台地。",
+    s: [["07:30", "早餐後出發"], ["10:00", "穿越高原與石灰岩台地"], ["13:00", "午餐（自帶便當）"], ["14:30", "抵達 Rif. Fanes（約 6 小時）"]],
+    w: "<b>中途補給點少</b>，前一晚就向山屋訂午餐便當（packed lunch）。"},
+  a3: {o: "Rifugio Fanes 2,060 m → Rifugio Lagazuoi 2,752 m", r: "全程最高的過夜點之一。",
+    s: [["07:30", "早餐後出發"], ["12:00", "午餐，續往 Lagazuoi"], ["15:00", "抵達 Rif. Lagazuoi（約 6 小時，+1,150 m）"], ["傍晚", "露台看日落"], ["隔天", "可走一戰坑道（Lagazuoi tunnels），要頭燈"]],
+    n: ["Lagazuoi 是多洛米地最高的山屋之一，露台視野被多個來源稱為最好的之一。"],
+    w: "<b>最高的過夜點（2,752 m）</b>，夜間可能接近 0°C，保暖層和手套要帶。"},
+  a4: {o: "Rifugio Lagazuoi 2,752 m → Cinque Torri → Rifugio Nuvolau 2,575 m", r: "經過 Cinque Torri 岩塔群。",
+    s: [["07:00", "看日出後出發"], ["10:30", "經過 Cinque Torri 岩塔群"], ["13:30", "抵達 Rif. Nuvolau（約 5 小時）"], ["下午", "在圓形老山屋外看 360 度景色"]],
+    w: "<b>Nuvolau 的管理單位近年換過</b>，訂房與營業日以當年資訊為準。"},
+  buf1: {o: "Rifugio Nuvolau 2,575 m（可選：Cortina d'Ampezzo 約 1,224 m）", r: "天氣好就不走路。",
+    s: [["彈性", "天氣好：不走路，在 Nuvolau 曬太陽，看 Cinque Torri"], ["彈性", "天氣差：把後面行程順延一天，不要硬走"], ["選項", "搭巴士下 Cortina 洗衣補給，隔天再上來"]]},
+  a5: {o: "Rifugio Nuvolau 2,575 m → Croda da Lago → Rifugio Città di Fiume 1,917 m", r: "路過 Croda da Lago 湖，正對 Pelmo 巨壁。",
+    s: [["08:00", "早餐後出發，往 Croda da Lago"], ["11:30", "湖邊午餐，正對 Pelmo 巨壁"], ["14:00", "抵達 Rif. Città di Fiume（約 6 小時）"]],
+    w: "<b>這天下降約 1,200 m</b>，膝蓋要顧，登山杖很有用。"},
+  a6: {o: "Rifugio Città di Fiume 1,917 m → Rifugio Sonino al Coldai 2,132 m", r: "繞過 Pelmo，抵達 Civetta 北壁腳下。",
+    s: [["08:00", "早餐後出發，繞過 Pelmo"], ["12:30", "午餐"], ["14:30", "抵達 Rif. Coldai（約 6 小時），山屋旁有 Coldai 湖"]],
+    n: ["Coldai 是 CAI 威尼斯分會的山屋，約 93 床，山屋旁的 Lago Coldai 在 Civetta 巨大岩壁下。"],
+    w: "<b>Coldai 有來源寫約 9 月中前營業</b>，這天要先確認山屋還開著。"},
+  a7: {o: "Rifugio Coldai 2,132 m → Rifugio Tissi → Rifugio Vazzoler 1,714 m", r: "沿著 Civetta 西壁走，路況順。",
+    s: [["08:30", "出發，經 Rif. Tissi 沿 Civetta 西壁走"], ["13:30", "抵達 Rif. Vazzoler（約 5 小時）"], ["下午", "休息；晚餐約 18:00~19:00"]]},
+  buf2: {o: "Rifugio Vazzoler 1,714 m · Val Corpassa", r: "下山前先休息一天。",
+    s: [["彈性", "晴天可走 Val Corpassa 輕鬆路線，或單純休息"], ["彈性", "天氣差：把下山與回程順延一天"]]},
+  x1: {t: "Rif. Vazzoler 下山 → Listolade → 威尼斯 → 米蘭", o: "Rifugio Vazzoler → Capanna Trieste → Listolade → Venezia Piazzale Roma → Venezia Santa Lucia → Milano Centrale → Milano Malpensa", r: "走 555 號步道下到 Listolade，搭巴士到威尼斯，轉火車到米蘭，住機場附近。山屋沒有巴士可到。", time: "下山約 2~2.5 小時，車程與火車約 6 小時（未查證）",
+    s: [["07:30", "早餐後下山，走 555 號步道經 Val Corpassa 到 Capanna Trieste 與 Listolade（約 2~2.5 小時）"], ["約 10:30", "Listolade 搭巴士 → 威尼斯 Piazzale Roma（ATVO 約 2 小時 51 分；我沒查到 Listolade 的班次）", 1], ["約 14:00", "走到 Venezia Santa Lucia 火車站（與 Piazzale Roma 相鄰，我沒量步行時間）"], ["約 15:00", "火車 → Milano Centrale（約 2.5 小時，未查證）", 1], ["約 18:00", "Malpensa Express → 機場附近住宿（約 50 分）"]],
+    w: "<b>整趟最不能錯過的一天：</b>Listolade 的巴士我沒查到班次，接不上就改在威尼斯本島外的 Mestre 過夜（我沒查房價），隔天再搭火車到米蘭。",
+    a: "備案：Dolomiti Bus 到 Belluno（約 46 分），再轉火車經威尼斯方向到米蘭。"},
+  kro: {t: "Kronplatz：MMM Corones 與 LUMEN", o: "Dobbiaco / Toblach → Brunico / Bruneck → Riscone / Reischach → Kronplatz / Plan de Corones 2,275 m", r: "Zaha Hadid 設計的山頂博物館，加上山岳攝影博物館 LUMEN，搭纜車上去，不能開車。", time: "火車、巴士與纜車約 2 小時（未查證）",
+    s: [["08:30", "Dobbiaco 搭火車 → Brunico（約 40 分，我沒查證）"], ["09:30", "Brunico 轉巴士 → Riscone / Reischach 纜車站", 1], ["10:00", "纜車 → Kronplatz（約 20 分，每 30 分一班；Rome2Rio 寫約 €15~18）", 1], ["10:30", "MMM Corones（Zaha Hadid 設計）"], ["13:00", "山上午餐，下午看 LUMEN 山岳攝影博物館"], ["15:30", "纜車下山，原路回 Dobbiaco"], ["17:00", "回到 Dobbiaco，補給"]],
+    n: ["MMM Corones 是 Messner Mountain Museum 的一座，由 Zaha Hadid 設計，據說是她過世前最後幾件落成的建築之一（出自你提供的行程，我沒查證）。博物館官網說不能開車上去，只能搭纜車。", "這天是 Zaha Hadid 主題的前半，後半是最後一天在米蘭 CityLife 的 Generali Tower。"],
+    w: "<b>MMM Corones 與 LUMEN 的營業時間、纜車末班與票價我都沒查到</b>，要看 messner-mountain-museum.it 與 kronplatz.com；下山時間抓寬，錯過末班就要改搭計程車或過夜。"},
+  milArch: {t: "米蘭建築日", o: "Milano Centrale → Porta Nuova（Bosco Verticale）→ CityLife → Fondazione Prada → Duomo", r: "最後一天看建築，也是下山當天的緩衝日。", time: "步行與地鐵",
+    s: [["上午", "Porta Nuova：Bosco Verticale（Stefano Boeri 設計的住宅塔，樹種在陽台上）"], ["11:00", "CityLife：三座塔，Zaha Hadid 的 Generali Tower 2019 年啟用，旁邊是 Isozaki 的 Allianz Tower"], ["13:00", "午餐"], ["14:30", "Fondazione Prada（Rem Koolhaas／OMA 把舊酒廠改建，白色塔樓 2018 年開放）"], ["17:00", "Torre Velasca（1958 年，上寬下窄的外型）與 Duomo、Galleria 一帶"], ["晚上", "Malpensa Express → 機場附近住宿"]],
+    n: ["以上建築與年份來自搜尋到的介紹文章。各館是否開放參觀、營業時間與票價我都沒查，要先看官網；Bosco Verticale 與 Torre Velasca 多半只能看外觀。"],
+    w: "<b>回程班機的時間要先確認。</b>長榮直飛的話是 BR96（2022 年資料），班機在早上就要住機場附近，建築日就要縮短。"}
+};
+const HUT_NOTE = "山屋夜：多半沒有手機訊號與 Wi-Fi；晚餐約 18:00~19:00、早餐約 07:00~08:00（各山屋不同，以回覆為準）。睡袋內套、現金、頭燈放在隨手拿得到的地方。";
+
+const AV = ["a1","a2","a3","a4","a5","a6","a7"];
+// end = 回台日。Coldai 有來源寫約 9 月中前營業，所以 Alta Via 1 都排在 9 月 10 日以前。兩個方案都從米蘭進出
+const PLANS = {
+  16: {name: "16 天", tag: "東線精華 + 建築", end: [9, 12],
+    pros: ["只走東線：Tre Cime 的 Locatelli，加上 Alta Via 1 中段（Lagazuoi、Nuvolau、Città di Fiume、Coldai、Vazzoler）",
+      "兩個建築日都有：Kronplatz 的 MMM Corones，以及最後一天的米蘭", "不用在 Rosengarten 與 Sesto 之間轉車，換乘少", "請假 16 天，在你預期的 14~16 天內"],
+    cons: ["沒有 Santnerpasshütte 與 Rosengarten", "只有 1 個緩衝日（米蘭建築日可兼緩衝）", "Pian di Cengia 與 Alta Via 1 南段都沒走", "從米蘭抵達 Dobbiaco 是整天轉車（約 7~8 小時）", "下山當天要一路轉到米蘭，接不上就要多住一晚"],
+    ids: ["fly","arrDob","kro","tc1","tc2","a1","a2","a3","a4","buf1","a5","a6","a7","x1","milArch","fly"]},
+  21: {name: "21 天", tag: "全收版", end: [9, 13],
+    pros: ["多一整區 Rosengarten：Vajolet、Santnerpasshütte、Tierser Alpl 三間山屋，包含你們喜歡的 Santnerpass", "再加 Pian di Cengia（Sesto 最高的山屋）",
+      "兩個建築日都有，步行日之間有休息", "米蘭離 Rosengarten 比 Dobbiaco 近，第一段交通比 16 天版輕鬆"],
+    cons: ["請假 21 天", "山屋分成西、東兩區，Rosengarten 到 Dobbiaco 是一整天車程", "三次大換乘（Rosengarten、Sesto、Alta Via 起點），車程多", "只有 1 個緩衝日，同樣沒走 Alta Via 1 南段"],
+    ids: ["fly","rw1","v1","v2","rw4","rw5","kro","tc1","s2","s3","a1","a2","a3","a4","buf1","a5","a6","a7","x1","milArch","fly"]}
+};
+
+// pri：3 最先訂、2 早訂、1 一般；url / info 是搜尋結果中確認過的連結
+const HUTS = {
+  "Rif. Locatelli": {url: "https://www.dreizinnenhuette.com", mail: "dreizinnenhuette@rolmail.net", tel: "+39 0474 972002", pri: 3, note: "Tre Cime 正面，有來源說旺季需求大，過夜要早訂。CAI 帕多瓦分會管理，約 6 月底到 9 月底營業。"},
+  "Rif. Pian di Cengia": {q: "Rifugio Pian di Cengia Büllelejochhütte", info: "https://www.dolomitisuperski.com/en/plan-and-book/accommodation/3-Zinnen-Dolomites/Rifugio-Pian-di-Cengia", pri: 3, note: "沒找到官網，只接受電話預約，約 15 床。有來源寫營業 6/1 到 9/15，要確認。"},
+  "Rif. Lagazuoi": {pri: 3, url: "https://rifugiolagazuoi.com/", mail: "info@rifugiolagazuoi.com", note: "各來源營業期不一致（有寫 9/15 關閉），要確認 2027 年的日期。"},
+  "Rif. Nuvolau": {pri: 3, url: "https://www.prenotarifugi.cai.it/en/detail/?id=5766", note: "CAI 預約平台有上架，24 床左右。管理單位會換，看當年資訊。"},
+  "Santnerpasshütte": {pri: 3, info: "https://www.planetmountain.com/en/mountain-huts/rifugio-passo-santner-santnerpasshutte-valle-di-fassa-fassatal.html", tel: "+39 337 1435665", note: "夏季營業，建議最早訂。電話取自 PlanetMountain，兩個來源的經理名字不同，要再確認。"},
+  "Rif. Vajolet": {pri: 2, url: "https://www.rifugiovajolet.com", mail: "info@rifugiovajolet.com", tel: "+39 335 7073258", note: "6 月到 10 月營業。"},
+  "Tierser Alpl-Hütte": {q: "Tierser Alpl Hütte Rifugio Alpe di Tires", info: "https://www.valgardena.it/it/indirizzi/dettagli-gastronomia/base/company/seiser-alm/tierser-alpl/C62F816B8B8B4E6E12AA11D37E118A21/", pri: 2, note: "沒找到官網。有目錄列 2026 夏季營業 5/27 到 10/18，每天 7 點到 22 點。"},
+  "Rif. Biella": {url: "https://rifugiobiella.it", mail: "info@rifugiobiella.com", tel: "+39 335 1431251", pri: 2, info: "https://cortina.dolomiti.org/dove-mangiare/rifugio-biella-en", note: "有來源寫營業 6/20 到 9/20。2022 年後經營者換過，聯絡方式要再確認。"},
+  "Rif. Fanes": {pri: 2, url: "https://www.rifugiofanes.it", note: "舊資料寫約 6 月初到 10 月中。"},
+  "Rif. Città di Fiume": {url: "https://www.rifugiocittadifiume.it", pri: 2, note: "CAI Fiume 分會的山屋，官網有開放日曆。"},
+  "Rif. Coldai": {q: "Rifugio Sonino al Coldai", info: "https://www.planetmountain.com/en/mountain-huts/rifugio-coldai-adolfo-sonino-val-di-zoldo.html", pri: 2, note: "沒找到官網。CAI 威尼斯分會的山屋，約 93 床，有來源寫約 6 月中到 9 月中營業。"},
+  "Rif. Vazzoler": {url: "https://www.rifugiovazzoler.com", mail: "rifugiovazzoler@gmail.com", tel: "0437 660008", pri: 2, note: "CAI Conegliano 分會，約 6/13 到 9/30 營業。網址取自舊資料，不確定還在運作。"},
+};
+const PRI = {3: "最先訂", 2: "早訂", 1: "一般"};
+const WHEN = {3: "1~2 月，預約一開放就訂", 2: "2~3 月", 1: "3~4 月"};
+const ZH = n => `${n.getMonth() + 1}/${n.getDate()}（${WD[n.getDay()]}）`;
+const EN = n => n.toLocaleDateString("en-GB", {day: "numeric", month: "long", year: "numeric"});
+
+let cur = 16, active = 1, days = [];
+try { const s = +localStorage.getItem("dolomiti-plan"); if (PLANS[s]) cur = s; } catch (e) {}
+
+function build(n) {
+  const ids = PLANS[n].ids, N = ids.length;
+  return ids.map((id, i) => {
+    const e = PLANS[n].end, dt = new Date(2027, e[0] - 1, e[1] - (N - 1) + i);
+    return {...DEF[id], ...(STEPS[id] || {}), id, ph: photosFor(id), d: i, dt, date: `${dt.getMonth() + 1}/${dt.getDate()} ${WD[dt.getDay()]}`};
+  });
+}
+const title = x => x.fly ? (x.d === 0 ? "搭夜機 台北 → 米蘭" : "米蘭 → 台北") : x.t;
+const desc = x => x.fly ? (x.d === 0 ? "長榮有台北到米蘭馬爾彭薩機場的直飛，約 13.5 小時（2019~2022 年資料，現在班次要查）；沒有直飛就轉機一次。" : "從米蘭馬爾彭薩機場搭機回台，隔天抵達。") : x.r;
+const range = n => { const d = build(n); return `${d[0].date.split(" ")[0]} 出發 → ${d[d.length - 1].date.split(" ")[0]} 回台`; };
+const stText = x =>x.st ? `${x.est ? "約 " : ""}${x.st[0]} km · ↑${num(x.st[1])} ↓${num(x.st[2])} m` : "";
+
+// 單日高度點（示意）：walk 是自己走，bus 是搭車；起伏形狀依上升/下降量估算，不是實測軌跡
+function dayPts(x) {
+  const prev = days[x.d - 1], s = prev && prev.alt !== undefined ? prev.alt : 0, e = x.alt;
+  if (x.rest) return [{alt: s}, {alt: e, mode: "walk"}];
+  if (x.prof) return x.prof.map((p, i) => i ? {alt: p[0], mode: p[1]} : {alt: s});
+  if (!x.st) return [{alt: s}, {alt: e, mode: "bus"}];
+  const ew = x.we !== undefined ? x.we : e, U = x.st[1], D = x.st[2], a = D * (ew - s < 0 ? .6 : .3);
+  const pts = [{alt: s}, {alt: Math.max(0, s - a), mode: "walk"}, {alt: Math.max(0, s - a + U), mode: "walk"}, {alt: ew, mode: "walk"}];
+  if (ew !== e) pts.push({alt: e, mode: "bus"});
+  return pts;
+}
+
+// 整趟剖面：今天走的紅色、走過的灰色、還沒走的淡色；虛線是搭車
+let fpSpans = [];
+function drawFP() {
+  const box = $("#fp");
+  if (!box) return;
+  const W = box.clientWidth || 600, L = 36, R = 8, T = 10, PH = 54, LAB = 50, H = T + PH + LAB;
+  const real = days.filter(x => !x.fly);
+  const wt = x => x.rest ? .35 : x.st ? .7 + x.st[0] / 10 : .7;
+  const total = real.reduce((a, x) => a + wt(x), 0);
+  const hi = Math.ceil((Math.max(...real.map(x => x.alt || 0), 1) + 100) / 1000) * 1000;
+  const Y = a => T + (1 - a / hi) * PH;
+  const grid = [0, 1000, 2000, 3000].filter(v => v <= hi).map(v => `<line class="fp-base" x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/><text class="fp-t" x="${L - 5}" y="${Y(v) + 3}" text-anchor="end">${num(v)}</text>`).join("");
+  let cum = 0;
+  const lines = [], names = [], dots = [];
+  let band = "";
+  fpSpans = [];
+  real.forEach(x => {
+    const x0 = L + (W - L - R) * cum / total; cum += wt(x);
+    const x1 = L + (W - L - R) * cum / total, pts = dayPts(x), st = x.d < active ? "past" : x.d === active ? "now" : "fut";
+    fpSpans.push({d: x.d, x0, x1});
+    pts.slice(1).forEach((p, i) => {
+      const xa = x0 + (x1 - x0) * i / (pts.length - 1), xb = x0 + (x1 - x0) * (i + 1) / (pts.length - 1);
+      lines.push({st, s: `<line class="fp-l ${st}${p.mode === "bus" ? " bus" : ""}" x1="${xa}" y1="${Y(pts[i].alt)}" x2="${xb}" y2="${Y(p.alt)}"/>`});
+    });
+    dots.push(`<circle class="fp-d ${st}" cx="${x1}" cy="${Y(x.alt)}" r="${st === "now" ? 5 : 3}"/>`);
+    if (!x.rest) names.push(`<text class="fp-n ${st}" transform="rotate(-55 ${x1} ${T + PH + 8})" x="${x1}" y="${T + PH + 8}" text-anchor="end">${SHORT[x.loc]}</text>`);
+    if (st === "now") band = `<rect class="fp-band" x="${x0}" y="${T - 4}" width="${x1 - x0}" height="${PH + 8}"/>`;
+  });
+  const order = {fut: 0, past: 1, now: 2};
+  lines.sort((a, b) => order[a.st] - order[b.st]);
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="整趟高度剖面，可點擊跳到該天">${grid}${band}${lines.map(l => l.s).join("")}${dots.join("")}${names.join("")}</svg>`;
+}
+
+// 日出日落（NOAA 公式，平地算法，山體會擋掉一部分）與月相（概算，可能差一天）
+function sunInfo(dt, loc) {
+  const p = RLOC[loc];
+  if (!p) return null;
+  const rad = Math.PI / 180, lat = p[0], lon = p[1];
+  const jd = Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate(), 12) / 864e5 + 2440587.5;
+  const n = Math.ceil(jd - 2451545.0 + 0.0008), Js = n - lon / 360;
+  const M = (357.5291 + 0.98560028 * Js) % 360, Mr = M * rad;
+  const C = 1.9148 * Math.sin(Mr) + 0.02 * Math.sin(2 * Mr) + 0.0003 * Math.sin(3 * Mr);
+  const lr = ((M + C + 180 + 102.9372) % 360) * rad;
+  const Jt = 2451545.0 + Js + 0.0053 * Math.sin(Mr) - 0.0069 * Math.sin(2 * lr);
+  const dec = Math.asin(Math.sin(lr) * Math.sin(23.4397 * rad));
+  const cw = (Math.sin(-0.833 * rad) - Math.sin(lat * rad) * Math.sin(dec)) / (Math.cos(lat * rad) * Math.cos(dec));
+  if (Math.abs(cw) > 1) return null;
+  const w = Math.acos(cw) / rad / 360;
+  const fmt = J => new Date((J - 2440587.5) * 864e5).toLocaleTimeString("it-IT", {timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit", hour12: false});
+  return {rise: fmt(Jt - w), set: fmt(Jt + w)};
+}
+const moonPct = dt => {
+  const jd = Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate(), 20) / 864e5 + 2440587.5;
+  const ph = (((jd - 2451550.1) / 29.530588853) % 1 + 1) % 1;
+  return Math.round((1 - Math.cos(2 * Math.PI * ph)) / 2 * 100);
+};
+
+function renderStatic() {
+  const P = PLANS[cur];
+  const huts = days.filter(x => !x.fly && !x.town);
+  const walks = days.filter(x => x.st);
+  const sum = k => walks.reduce((a, x) => a + x.st[k], 0);
+  const top = Math.max(...days.filter(x => x.alt).map(x => x.alt));
+
+  document.querySelectorAll(".plan").forEach(b => b.setAttribute("aria-pressed", +b.dataset.n === cur));
+  $("#lede").textContent = `兩個人走 Dolomiti。目前是 ${P.name}方案（${P.tag}），${range(cur)}。`;
+  $("#plandetail").innerHTML = `<div class="box"><h3>${P.name}方案的特色</h3><ul>${P.pros.map(t => `<li>${t}</li>`).join("")}</ul></div><div class="box"><h3>缺點</h3><ul>${P.cons.map(t => `<li>${t}</li>`).join("")}</ul></div>`;
+  $("#stats").innerHTML = [
+    [days.length + " 天", "含來回機程"], [huts.length + " 晚", "住山屋"], [walks.length + " 天", "有步行的天數"],
+    ["約 " + Math.round(sum(0)) + " km", "步行總距離"], ["約 " + num(sum(1)) + " m", "步行總上升"], ["約 " + num(sum(2)) + " m", "步行總下降"],
+    ["約 " + num(Math.round((sum(1) + sum(2)) / walks.length / 10) * 10) + " m", "平均每個步行日 上升＋下降"],["約 " + Math.round(sum(0) / walks.length) + " km", "平均每個步行日"]].map(([b, s]) => `<div><b>${b}</b><span>${s}</span></div>`).join("");
+  $("#daynote").textContent = "點任何一天，上方的示意地圖會跟著移動。時間是一般步行時間，不含休息；距離與爬升只算自己走的路，搭車、纜車和接駁不算，數字為估計值。山屋營業日、巴士時刻和步道狀況每年不同，出發前請對照各山屋官網。";
+  $("#cash").textContent = `半食宿（住宿加晚餐早餐）每人約 €60~95（各來源從 €50 到 €130 都有），${huts.length} 晚兩人約 €${num(huts.length * 120)}~${num(huts.length * 190)}，這是估計值。`;
+
+  const hutNight = x => !x.fly && !x.town;
+  $("#days").innerHTML = days.map(x => {
+    const s = x.fly ? null : sunInfo(x.dt, x.loc), hut = hutNight(x);
+    return `
+    <li class="day${x.fly ? " fly" : ""}${x.rest ? " rest" : ""}${x.ph.length ? " has-ph" : ""}" data-i="${x.d}" tabindex="0">
+      <div class="tag">
+        <b class="dn">D${x.d}</b><span class="dd">${x.date}</span>
+        <div class="dalt">${x.alt ? `<b>${num(x.alt)}</b>公尺` : x.fly ? "<b>—</b>飛行" : "<b>0</b>公尺"}</div>
+        ${s ? `<div class="dsun">日出 ${s.rise}<br>日落 ${s.set}</div>` : ""}
+      </div>
+      <div class="body">
+        <h3 class="dt">${title(x)}</h3>
+        ${x.o ? `<p class="dorig">${x.o}</p>` : ""}
+        <p class="ddesc">${desc(x)}</p>
+        ${x.s ? `<ul class="tl">${x.s.map(r => `<li${r[2] ? ' class="hot"' : ""}><span class="hh">${r[0]}</span><span class="ww">${r[1]}</span></li>`).join("")}</ul>` : ""}
+        ${(x.n || []).map(t => `<div class="note">${t}</div>`).join("")}
+        ${x.w ? `<div class="note warn">${x.w}</div>` : ""}
+        ${x.a ? `<div class="note">${x.a}</div>` : ""}
+        ${hut ? `<div class="note">${HUT_NOTE}夜裡月亮約 ${moonPct(x.dt)}%。日出日落是平地算法，山體會擋掉一部分。</div>` : ""}
+        <div class="meta">
+          ${x.time ? `<span>${x.time}</span>` : ""}
+          ${x.st ? `<span>${stText(x)}</span>` : ""}
+          ${x.lv ? `<span class="pill lv-${x.lv}">${LV[x.lv]}</span>` : ""}
+        </div>
+        ${x.ph.length ? `<div class="ph-strip">${x.ph.map((p, j) => phBtn(x, j, "strip")).join("")}<a class="ph-more" href="${gimg(x)}" target="_blank" rel="noopener">更多照片（Google 圖片）</a></div>` : ""}
+        ${x.fly ? "" : `<p class="stay"><b>住</b>　${x.sleep}${x.alt ? ` · ${num(x.alt)} m` : ""}${hut ? '<span class="nosig">沒有訊號</span>' : ""}</p>`}
+      </div>
+      ${x.ph.length ? phBtn(x, 0, "lead") : ""}
+    </li>`;
+  }).join("");
+
+  booking();
+  extras(huts);
+}
+
+// 不能錯過的班次與費用估算（兩人，區間是我的估計）
+function extras(huts) {
+  const ids = new Set(days.map(x => x.id)), has = (...a) => a.some(i => ids.has(i));
+  const miss = [];
+  if (has("arrDob")) miss.push(["米蘭 → Bolzano → Dobbiaco", "整天轉車，班機到達時間決定能不能接上，太晚就在 Bolzano 過夜。"]);
+  if (has("rw1")) miss.push(["米蘭 → Bolzano → Nova Levante", "整天轉車，班次我沒查證，要先排好整條；太晚就在 Bolzano 過夜。"]);
+  if (has("rw5")) miss.push(["Tires → Dobbiaco", "沒有直達班次，要先問好計程車或巴士，太晚就在 Bolzano 過夜。"]);
+  if (has("tc2", "s3")) miss.push(["往 Braies 的 442 號巴士", "2026 年 7/1~9/15 的 9:00~16:00 要網路預約，客卡不通用；2027 年規則要查。"]);
+  if (has("v1")) miss.push(["Vigo 的 Ciampedie 纜車", "末班時間要先查，錯過就得多走很長一段。"]);
+  if (has("kro")) miss.push(["Kronplatz 纜車末班", "營業時間我沒查到，下山時間要抓寬，錯過就要改搭計程車或過夜。"]);
+  miss.push(["下山當天：Listolade → 威尼斯 → 米蘭", "Listolade 的巴士班次我沒查到，接不上就在 Mestre 過夜，隔天再去米蘭。"]);
+  $("#missable").innerHTML = `<b>不能錯過的班次</b><ol>${miss.map(([t, s]) => `<li><b>${t}</b>：${s}</li>`).join("")}</ol>`;
+
+  const hutN = huts.length, townN = days.filter(x => !x.fly && x.town).length, walkN = days.filter(x => x.st).length;
+  const busDays = ["tc1", "tc2", "s3", "v1"].filter(i => ids.has(i)).length;
+  const rows = [
+    ["山屋半食宿", hutN * 120, hutN * 190, `${hutN} 晚 × 2 人 × €60~95。來源的價格差很大（€50~130），這是中間值。`],
+    ["鎮上住宿", townN * 100, townN * 160, `${townN} 晚，雙人房每晚約 €100~160，是我的估計，湖邊與旺季更貴。`],
+    ["米蘭 → Bolzano → 山區（抵達）", 2 * 40, 2 * 70, "火車經 Verona 到 Bolzano 再轉車，一人約 €40~70，是我的估計。"],
+    ["Listolade → 威尼斯 → 米蘭（回程）", 2 * (12 + 25), 2 * (25 + 60), "巴士約 €12~25，威尼斯到米蘭火車約 €25~60，一人，是我的估計；多住一晚的 Mestre 住宿另計。"]
+  ];
+  if (has("rw5")) rows.push(["Tires → Dobbiaco 長程接駁", 2 * 30, 2 * 60, "巴士轉乘或計程車，沒有報價，是估計。"]);
+  if (busDays) rows.push(["當地巴士", busDays * 2 * 5, busDays * 2 * 15, `${busDays} 天，每人每天約 €5~15。`]);
+  if (has("tc1")) rows.push(["Tre Cime 接駁車", 20, 20, "2026 年資料一人 €10，一天有效。"]);
+  if (has("kro")) rows.push(["Kronplatz 一日（火車、巴士、纜車）", 2 * 20, 2 * 40, "纜車約 €15~18（Rome2Rio，單程或來回不明），加火車與巴士，是估計。"]);
+  if (has("milArch")) rows.push(["米蘭建築日（地鐵與門票）", 2 * 10, 2 * 40, "我沒查票價，是估計。"]);
+  if (has("v1")) rows.push(["Ciampedie 纜車", 2 * 10, 2 * 22, "2019 年來回約 €18，現價與單程票價要查。"]);
+  rows.push(["午餐便當、零食與飲料", walkN * 2 * 12, walkN * 2 * 25, `${walkN} 個步行日，每人每天約 €12~25。`]);
+  rows.push(["熱水澡與雜費", 0, hutN * 2 * 5, "山屋的熱水澡通常另收，約 €3~5。"]);
+  const lo = rows.reduce((a, r) => a + r[1], 0), hi = rows.reduce((a, r) => a + r[2], 0);
+  $("#costs").innerHTML = rows.map(([t, a, b, s]) => `<tr><td>${t}</td><td>${num(a)}${a === b ? "" : "~" + num(b)}</td><td><small>${s}</small></td></tr>`).join("") +
+    `<tr class="cost-total"><td>合計</td><td>${num(lo)}~${num(hi)}</td><td><small>約 NT$ ${num(Math.round(lo * 35 / 1000) * 1000)}~${num(Math.round(hi * 35 / 1000) * 1000)}（以 €1 ≈ NT$35 概算）</small></td></tr>`;
+  $("#costnote").textContent = "不含機票、旅平險、裝備與威尼斯觀光。價格多半取自 2019~2026 年的第三方資料，2027 年會調整，只能當預算參考。";
+}
+
+function group(filter) {
+  const rows = [];
+  days.forEach((x, i) => {
+    if (x.fly || !filter(x)) return;
+    const last = rows[rows.length - 1];
+    if (last && last.name === x.sleep && last.end === i - 1) { last.nights++; last.end = i; }
+    else rows.push({name: x.sleep, dt: x.dt, nights: 1, end: i});
+  });
+  return rows;
+}
+
+function mailText(r) {
+  return `Dear ${r.name.replace("Rif.", "Rifugio")},
+
+We are two hikers from Taiwan walking in the Dolomites in September 2027. We would like to book ${r.nights} night${r.nights > 1 ? "s" : ""} starting from ${EN(r.dt)}.
+
+- 2 persons, half board (mezza pensione)
+- Shared dormitory beds are fine
+- Expected arrival: around 16:00-17:00
+
+Could you please let us know:
+1) whether you are open on these dates and have beds available,
+2) the price per person, deposit and cancellation terms,
+3) whether we can pay by card, or cash only,
+4) whether a packed lunch can be arranged for the next morning.
+
+Thank you very much.
+Best regards,
+[Your name]`;
+}
+
+function booking() {
+  const hutRows = group(x => !x.town);
+  const townRows = group(x => x.town);
+  const link = (u, t) => `<a href="${u}" target="_blank" rel="noopener">${t}</a>`;
+  const row = (r, isHut) => {
+    const H = HUTS[r.name] || {};
+    const how = isHut ? [
+      H.url ? link(H.url, "官網") : "",
+      H.info ? link(H.info, "資料頁") : "",
+      !H.url ? link("https://www.google.com/search?q=" + encodeURIComponent((H.q || r.name) + " prenotazione booking"), "搜尋") : "",
+      H.mail ? `<small>${H.mail}</small>` : "", H.tel ? `<small>${H.tel}</small>` : ""
+    ].filter(Boolean).join(" ") : "<small>用訂房網站，選可免費取消的方案。</small>";
+    const note = isHut ? (H.note || "") : (/Braies/.test(r.name) ? "湖區住宿熱門，要早訂。" : /米蘭/.test(r.name) ? "回程班機前一晚，離機場要近。" : /威尼斯/.test(r.name) ? "Listolade 下山當晚。" : "");
+    return `<tr><td><b>${r.name}</b></td><td>${ZH(r.dt)}<small>${r.nights} 晚</small></td>
+      <td>${isHut ? `<span class="pri pri-${H.pri || 2}">${PRI[H.pri || 2]}</span>` : ""}</td>
+      <td><small>${isHut ? WHEN[H.pri || 2] : "3~4 月，選可免費取消"}</small></td>
+      <td>${how}</td><td><small>${note}</small></td>
+      <td>${isHut ? `<button class="btn" data-mail="${days.findIndex(d => d.dt === r.dt && d.sleep === r.name)}" data-n="${r.nights}">複製訂房信</button>` : ""}</td></tr>`;
+  };
+  $("#huts").innerHTML = hutRows.map(r => row(r, true)).join("") +
+    `<tr><td colspan="7"><small>鎮上住宿</small></td></tr>` + townRows.map(r => row(r, false)).join("");
+  window.__rows = hutRows;
+  const topHuts = hutRows.filter(r => (HUTS[r.name] || {}).pri === 3).map(r => `${r.name}（${ZH(r.dt)}）`);
+  $("#bookhint").innerHTML = `<b>什麼時候要訂：山屋最早，建議 2027 年 1~2 月就開始</b><ul>
+    <li><b>最先訂</b>：${topHuts.join("、")}。預約一開放就訂。</li>
+    <li>其他山屋 2~3 月；鎮上住宿與機票 3~4 月，選可免費取消的。</li>
+    <li>各山屋官方的開放預約日我沒查到，要看各山屋官網或寄信詢問。<a href="#book">看完整時間表與每間山屋怎麼訂 ↓</a></li></ul>`;
+
+  const first = days[1].dt, y = d => `${d.getMonth() + 1} 月`;
+  $("#timeline").innerHTML = [
+    ["2026 年 11~12 月（現在）", "選好天數，列出要訂的山屋。到各山屋官網或寫信問「2027 年何時開放預約」，我沒有查到官方日期。"],
+    ["2027 年 1~3 月", "最先訂 Locatelli、Lagazuoi、Nuvolau、Santnerpasshütte、Pian di Cengia 等熱門山屋，一旦開放預約就寄信或線上訂。"],
+    ["2027 年 3~4 月", "訂其餘山屋。山屋確定後再訂機票，或先買可改期的票。"],
+    ["2027 年 4~5 月", "確認各山屋的訂金、取消與改期條款，並存下書面確認。買好含登山與直升機搜救的旅平險，訂鎮上住宿。"],
+    ["2027 年 6~7 月", "查 Dobbiaco、Braies、Gardeccia 等地的巴士與火車時刻，這些時刻通常夏季前後才公布。"],
+    [`出發前 1 個月（${first.getMonth() + 1} 月前後）`, "逐間用 email 或 WhatsApp 再確認入住日，告知預計到達時間。換好歐元現金。"],
+    ["出發前 1 週", "看天氣預報、步道公告與 Braies 湖區交通規定。把所有確認信存在手機離線可看。"]
+  ].map(([t, s]) => `<li><b>${t}</b><span>${s}</span></li>`).join("");
+}
+
+const ASK = ["2027 年實際開放與關閉日期，我們住的那幾晚有沒有開",
+  "半食宿價格，含不含早餐、晚餐，飲料另計多少", "床位型態：通鋪、四人房或雙人房，兩人能不能同房",
+  "訂金金額、付款方式，取消與改期規定", "是否收信用卡，還是只收現金",
+  "抵達時間限制（通常要趕上晚餐）與遲到時怎麼通知", "睡袋內套是否必備，有沒有提供枕頭與毯子",
+  "素食、過敏與不吃的食物", "午餐便當（packed lunch）可不可以前一晚訂", "熱水澡、插座、行動訊號與 Wi-Fi 狀況",
+  "拿到書面確認（email 或 WhatsApp 截圖），存在手機離線", "訂房名字和護照姓名一致",
+  "如果要取消或晚到，一定要通知山屋"];
+const BASE = ["機票與威尼斯來回交通", "旅平險含登山健行與直升機救援", "山屋與鎮上住宿的巴士時刻確認",
+  "歐元現金（山屋多數不收卡）", "睡袋內套（多數山屋規定要自備）", "防水外套與雨褲", "保暖層，夜間山屋可能只有 0~5°C",
+  "登山杖與已磨合的登山鞋", "頭燈（Lagazuoi 坑道必備）", "行動電源與歐規轉接頭", "護照與保險資料紙本"];
+let saved = {};
+try { saved = JSON.parse(localStorage.getItem("dolomiti-check") || "{}"); } catch (e) {}
+// 雲端同步（Firestore REST）：網址帶 #k=密鑰 才啟用，沒有就只存本機。規則只放行帶這把密鑰的兩個文件。
+const SYNC = (() => {
+  const API = "https://firestore.googleapis.com/v1/projects/travel-plans-ytw/databases/(default)/documents/trips/", KEY = "AIzaSyAo1lMYkAOJcjh36DGJerCN2EJ_R7rZ8c4", SUF = "dolomites";
+  let k = "";
+  try { const m = /[#&]k=([\w-]+)/.exec(location.hash); if (m) localStorage.setItem("trip-key", m[1]); k = localStorage.getItem("trip-key") || ""; } catch (e) {}
+  const url = () => API + k + "-" + SUF + "?key=" + KEY;
+  const pull = async () => { const r = await fetch(url()); if (r.status === 404) return {}; if (!r.ok) throw r.status; return JSON.parse((((await r.json()).fields || {}).check || {}).stringValue || "{}"); };
+  // ponytail: 先讀再寫，兩人同一秒勾同一份清單才會互蓋，夠用
+  const push = async (key, val) => { if (!k) return; try { const c = {...await pull(), [key]: val}; await fetch(url() + "&updateMask.fieldPaths=check", {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fields: {check: {stringValue: JSON.stringify(c)}}})}); } catch (e) {} };
+  const sync = async apply => { if (!k) return; try { apply(await pull()); } catch (e) {} };
+  return {push, sync};
+})();
+const checks = (el, items) => { el.innerHTML = items.map(t => `<li><label><input type="checkbox"${saved[t] ? " checked" : ""} data-k="${t.replace(/"/g, "&quot;")}"><span>${t}</span></label></li>`).join(""); };
+function lists() {
+  const names = [...new Set(days.filter(x => !x.fly && !x.town).map(x => x.sleep))];
+  checks($("#askcheck"), ASK);
+  checks($("#check"), [`訂好 ${names.length} 間山屋：${names.join("、")}`, ...BASE]);
+}
+document.addEventListener("change", e => {
+  const k = e.target.dataset && e.target.dataset.k;
+  if (!k) return;
+  saved[k] = e.target.checked;
+  try { localStorage.setItem("dolomiti-check", JSON.stringify(saved)); } catch (err) {}
+  SYNC.push(k, e.target.checked);
+});
+
+// ---- 地圖 ----
+const SHORT = {ven: "威尼斯", mil: "米蘭", bel: "Belluno", ago: "Listolade", nl: "N. Levante", vaj: "Vajolet", san: "Santner", alp: "Tierser Alpl", dob: "Dobbiaco", loc: "Locatelli", cen: "Cengia", bra: "Braies", bie: "Biella", fan: "Fanes", lag: "Lagazuoi", nuv: "Nuvolau", fiu: "Fiume", col: "Coldai", vaz: "Vazzoler", car: "Carestiato", pra: "Pramperet", fon: "Fontana"};
+const MAP_W = 400, MAP_H = 520, ASPECT = MAP_W / MAP_H;
+let mapMode = "follow", compact = false, vbNow = [0, 0, MAP_W, MAP_H], raf = 0;
+try { mapMode = localStorage.getItem("dolomiti-map") === "all" ? "all" : "follow"; compact = localStorage.getItem("dolomiti-compact") === "1"; } catch (e) {}
+
+// 今天移動的範圍 → 地圖鏡頭。跟隨模式只平移縮放，不旋轉，過場 0.55 秒。
+function targetVB() {
+  if (mapMode === "all") return [0, 0, MAP_W, MAP_H];
+  const x = days[active], ids = [days[active - 1] ? days[active - 1].loc : x.loc, x.via, x.loc].filter(Boolean);
+  const P = ids.map(id => LOC[id]), xs = P.map(p => p[0]), ys = P.map(p => p[1]);
+  let bw = Math.max(Math.max(...xs) - Math.min(...xs) + 90, 150), bh = Math.max(Math.max(...ys) - Math.min(...ys) + 90, 150 / ASPECT);
+  if (bw / bh > ASPECT) bh = bw / ASPECT; else bw = bh * ASPECT;
+  if (bw >= MAP_W) return [0, 0, MAP_W, MAP_H];
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+  return [Math.max(0, Math.min(MAP_W - bw, cx - bw / 2)), Math.max(0, Math.min(MAP_H - bh, cy - bh / 2)), bw, bh];
+}
+
+function mapSVG(vb, pxW) {
+  const k = pxW / vb[2], u = px => px / k;     // px → 畫布單位，字和點的視覺大小固定
+  const legs = [];
+  days.forEach((x, i) => {
+    if (i === 0) return;
+    const from = days[i - 1].loc, pts = x.via ? [from, x.via, x.loc] : [from, x.loc];
+    for (let j = 0; j < pts.length - 1; j++) {
+      if (pts[j] === pts[j + 1]) continue;
+      legs.push({a: LOC[pts[j]], b: LOC[pts[j + 1]], mv: (x.via && j === pts.length - 2) ? "bus" : (x.mv || "walk"), i});
+    }
+  });
+  const st = l => l.i < active ? "done" : l.i === active ? "now" : "";
+  const order = l => l.i === active ? 2 : l.i < active ? 1 : 0;
+  const path = legs.slice().sort((p, q) => order(p) - order(q)).map(l => {
+    const [x1, y1] = l.a, [x2, y2] = l.b, mx = (x1 + x2) / 2 + (l.mv === "bus" ? (y2 - y1) * .12 : 0), my = (y1 + y2) / 2 - (l.mv === "bus" ? (x2 - x1) * .12 : 0);
+    return `<path class="m-seg ${l.mv} ${st(l)}" d="M${x1},${y1} Q${mx},${my} ${x2},${y2}"/>`;
+  }).join("");
+  const first = {}, used = new Set();
+  days.forEach((x, i) => [x.loc, x.via].forEach(id => { if (id) { used.add(id); if (first[id] === undefined) first[id] = i; } }));
+  const here = days[active].loc, prevLoc = days[active - 1] ? days[active - 1].loc : null, nextLoc = days[active + 1] ? days[active + 1].loc : null;
+  const fs = u(10.5), placed = [];
+  const prio = id => id === here ? 0 : id === prevLoc || id === days[active].via ? 1 : id === nextLoc ? 2 : first[id] <= active ? 3 : 4;
+  const hit = (a, b) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
+  const inView = (x, y) => x > vb[0] - 4 && x < vb[0] + vb[2] + 4 && y > vb[1] - 4 && y < vb[1] + vb[3] + 4;
+  const labels = {};
+  [...used].sort((a, b) => prio(a) - prio(b)).forEach(id => {
+    const [x, y, , side] = LOC[id], text = SHORT[id], w = text.length * fs * (/[一-鿿]/.test(text) ? 1 : .62), gap = u(9);
+    const r = side === "l" ? {x0: x - gap - w, x1: x - gap} : {x0: x + gap, x1: x + gap + w};
+    r.y0 = y - fs * .6; r.y1 = y + fs * .6;
+    if (!inView(x, y) || placed.some(p => hit(p, r))) return;
+    placed.push(r); labels[id] = true;
+  });
+  const dots = [...used].map(id => {
+    const [x, y, , side] = LOC[id], seen = first[id] <= active, now = id === here;
+    const tx = side === "l" ? x - u(9) : x + u(9), anchor = side === "l" ? "end" : "start";
+    return `<g data-loc="${id}" style="cursor:pointer">${now ? `<circle class="m-pulse" cx="${x}" cy="${y}" r="${u(9)}"/>` : ""}
+      <circle class="m-dot${now ? " now" : seen ? " seen" : ""}" cx="${x}" cy="${y}" r="${u(now ? 6.5 : 4.5)}"/>
+      ${labels[id] ? `<text class="m-lab${now ? " now" : seen ? " seen" : ""}" style="font-size:${fs}px" x="${tx}" y="${y + fs * .35}" text-anchor="${anchor}">${SHORT[id]}</text>` : ""}</g>`;
+  }).join("");
+  const zones = ZONES.map(([t, x, y]) => `<text class="m-zone" style="font-size:${u(8.5)}px" x="${x}" y="${y}">${t}</text>`).join("");
+  return `<svg viewBox="${vb.join(" ")}" role="img" aria-label="路線示意圖，點地名可跳到那天">${zones}${path}${dots}</svg>`;
+}
+
+function setMap() {
+  const box = $("#map"), tgt = targetVB();
+  box.innerHTML = mapSVG(tgt, box.clientWidth || 190);
+  const svg = box.firstElementChild;
+  cancelAnimationFrame(raf);
+  const from = vbNow.slice(), t0 = performance.now(), D = 550;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches || from.every((v, i) => Math.abs(v - tgt[i]) < .5)) { vbNow = tgt; return; }
+  svg.setAttribute("viewBox", from.join(" "));
+  const step = now => {
+    const t = Math.min(1, (now - t0) / D), e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    vbNow = from.map((v, i) => v + (tgt[i] - v) * e);
+    svg.setAttribute("viewBox", vbNow.join(" "));
+    if (t < 1) raf = requestAnimationFrame(step);
+  };
+  raf = requestAnimationFrame(step);
+}
+
+// 放大地圖：全覽、字夠大，點地名跳到那天
+function drawBig() {
+  const b = $("#bigmap");
+  let h = Math.min(innerHeight * .84, 980), w = h * ASPECT;
+  if (w > innerWidth * .92) { w = innerWidth * .92; h = w / ASPECT; }
+  b.style.width = w + "px"; b.style.height = h + "px";
+  b.innerHTML = mapSVG([0, 0, MAP_W, MAP_H], w);
+}
+let bigTab = "real", realView = "day";
+function bigOpen(on) { $("#modal").hidden = !on; if (on) { showBig(bigTab); $("#bigclose").focus(); } }
+function showBig(tab) {
+  if (tab === "real" && (typeof maplibregl === "undefined" || typeof mlcontour === "undefined")) tab = "sch";
+  bigTab = tab;
+  $("#realwrap").hidden = tab !== "real";
+  $("#bigmap").hidden = $("#schnote").hidden = tab !== "sch";
+  $("#tabReal").setAttribute("aria-pressed", tab === "real");
+  $("#tabSch").setAttribute("aria-pressed", tab === "sch");
+  ["viewAll", "viewDay", "gmap", "baseClean", "baseSat", "tgContour", "tgTrails"].forEach(id => { $("#" + id).hidden = tab !== "real"; });
+  document.querySelectorAll(".tabs .sep").forEach(s => { s.hidden = tab !== "real"; });
+  if (tab === "real") drawReal(); else drawBig();
+  const x = days[active];
+  $("#mDay").textContent = `D${x.d} · ${x.date} · ${title(x)}`;
+  $("#mPrev").disabled = active <= 0; $("#mNext").disabled = active >= days.length - 1;
+}
+
+// 實際地圖：座標取自 OpenStreetMap 的地名搜尋（Nominatim），路線是山屋之間的直線，實際步道看底圖與步道疊層
+const RLOC = {bru: [46.7947, 11.9298], kro: [46.7373, 11.9544], mil: [45.4863, 9.2047], bz: [46.4964, 11.3588], ven: [45.4411, 12.3210], bel: [46.1415, 12.2099], ago: [46.3162, 12.0069], nl: [46.4302, 11.5389], vaj: [46.4586, 11.6328], san: [46.4563, 11.6185], alp: [46.4972, 11.6328],
+  dob: [46.7248, 12.2255], loc: [46.6369, 12.3105], cen: [46.6316, 12.3413], bra: [46.6947, 12.0858], bie: [46.6656, 12.0846], fan: [46.6122, 12.0142], lag: [46.5278, 12.0081],
+  nuv: [46.4953, 12.0457], fiu: [46.4369, 12.1226], col: [46.3994, 12.0689], vaz: [46.3541, 12.0310],
+  cor: [46.5685, 12.1323], mis: [46.5822, 12.2538], aur: [46.6122, 12.2961], gar: [46.4472, 11.6401], vig: [46.4204, 11.6726], pri: [46.4741, 11.6388], gar2: [46.4593, 11.6229], fis: [46.6670, 12.3541], com: [46.6284, 12.3580]};
+const RNAME = {...SHORT, bru: "Brunico", kro: "MMM Corones", bz: "Bolzano", mil: "米蘭", nl: "Nova Levante", ven: "威尼斯", ago: "Listolade", cor: "Cortina", mis: "Misurina", aur: "Rif. Auronzo", gar: "Gardeccia", vig: "Vigo di Fassa", pri: "Passo Principe", gar2: "Gartlhütte", fis: "Fischleintal", com: "Rif. Comici", cen: "Pian di Cengia", loc: "Rif. Locatelli", fiu: "Città di Fiume"};
+// 每天的中途點與每一段的移動方式（walk 步行、bus 搭車或纜車）
+const RR = {
+  arrDob: [["bz"], ["bus", "bus"]], rw1: [["bz"], ["bus", "bus"]],  v1: [["vig", "gar"], ["bus", "bus", "walk"]], v2: [["gar2"], ["walk", "walk"]],
+  rw4: [["gar2", "vaj", "pri"], ["walk", "walk", "walk", "walk"]], rw5: [[], ["bus"]], tc1: [["mis", "aur"], ["bus", "bus", "walk"]],
+  tc2: [["aur", "mis", "dob"], ["walk", "bus", "bus", "bus"]], s3: [["com", "fis", "dob"], ["walk", "walk", "bus", "bus"]], x1: [["ago", "ven"], ["walk", "bus", "bus"]],
+  kro: [["bru", "kro", "bru"], ["bus", "bus", "bus", "bus"]]
+};
+const hav = (a, b) => {
+  const t = x => x * Math.PI / 180, dl = t(b[0] - a[0]), dn = t(b[1] - a[1]);
+  return 12742 * Math.asin(Math.sqrt(Math.sin(dl / 2) ** 2 + Math.cos(t(a[0])) * Math.cos(t(b[0])) * Math.sin(dn / 2) ** 2));
+};
+let rmap = null, rready = false, rmarkers = [], rbase = "clean", rtog = {contour: true, trails: false, labels: true};
+function realLegs() {
+  const legs = [];
+  days.forEach((x, i) => {
+    if (i === 0) return;
+    const r = RR[x.id], pts = [days[i - 1].loc, ...(r ? r[0] : []), x.loc];
+    for (let k = 0; k < pts.length - 1; k++) if (pts[k] !== pts[k + 1]) legs.push({a: pts[k], b: pts[k + 1], mv: r ? r[1][k] : (x.mv || "walk"), i});
+  });
+  return legs;
+}
+function initReal() {
+  const dem = new mlcontour.DemSource({url: "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png", encoding: "terrarium", maxzoom: 12, worker: true, cacheSize: 100, timeoutMs: 10000});
+  dem.setupMaplibre(maplibregl);
+  const ras = (tiles, attribution, maxzoom) => ({type: "raster", tiles, tileSize: 256, attribution, maxzoom});
+  const abc = (u) => ["a", "b", "c"].map(s => u.replace("{s}", s));
+  const leg = (id, st, mv, paint) => ({id, type: "line", source: "legs", filter: ["all", ["==", ["get", "st"], st], ["==", ["get", "mv"], mv]], layout: {"line-cap": "round"}, paint});
+  rmap = new maplibregl.Map({
+    container: "realmap", dragRotate: false, pitchWithRotate: false, touchPitch: false, attributionControl: {compact: true},
+    style: {version: 8, glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+      sources: {
+        carto: ras(["https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"], "Esri, HERE, Garmin, © OpenStreetMap 貢獻者", 16),
+        cartolab: ras(["https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}"], "Esri", 16),
+        topo: ras(abc("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"), "© OpenStreetMap 貢獻者, SRTM | © OpenTopoMap (CC-BY-SA)", 17),
+        osm: ras(["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], "© OpenStreetMap 貢獻者", 19),
+        sat: ras(["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], "Esri, Maxar, Earthstar Geographics", 18),
+        trails: ras(["https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png"], "© waymarkedtrails.org", 18),
+        dem: {type: "raster-dem", encoding: "terrarium", tiles: [dem.sharedDemProtocolUrl], maxzoom: 12, tileSize: 256},
+        contours: {type: "vector", maxzoom: 14, tiles: [dem.contourProtocolUrl({thresholds: {8: [200, 1000], 10: [100, 500], 12: [50, 200], 14: [20, 100]}, contourLayer: "contours", elevationKey: "ele", levelKey: "level"})]},
+        legs: {type: "geojson", data: {type: "FeatureCollection", features: []}}
+      },
+      layers: [
+        {id: "bg", type: "background", paint: {"background-color": "#f4f5f4"}},
+        {id: "b-clean", type: "raster", source: "carto"},
+        {id: "b-topo", type: "raster", source: "topo", layout: {visibility: "none"}},
+        {id: "b-osm", type: "raster", source: "osm", layout: {visibility: "none"}},
+        {id: "b-sat", type: "raster", source: "sat", layout: {visibility: "none"}},
+        {id: "hill", type: "hillshade", source: "dem", paint: {"hillshade-exaggeration": .45, "hillshade-shadow-color": "#5d6d70", "hillshade-highlight-color": "#ffffff", "hillshade-accent-color": "#8a979b"}},
+        {id: "trails", type: "raster", source: "trails", layout: {visibility: "none"}},
+        {id: "cont", type: "line", source: "contours", "source-layer": "contours", paint: {"line-color": "#8a6a3b", "line-opacity": .6, "line-width": ["match", ["get", "level"], 1, 1.3, .5]}},
+        {id: "contlab", type: "symbol", source: "contours", "source-layer": "contours", filter: [">", ["get", "level"], 0],
+          layout: {"symbol-placement": "line", "text-size": 10, "text-field": ["number-format", ["get", "ele"], {}], "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"]},
+          paint: {"text-color": "#6b4f26", "text-halo-color": "rgba(255,255,255,.85)", "text-halo-width": 1.2}},
+        {id: "cartolab", type: "raster", source: "cartolab", paint: {"raster-opacity": .85}},
+        leg("fut-walk", "fut", "walk", {"line-color": "#1c2a2e", "line-width": 2, "line-opacity": .5}),
+        leg("fut-bus", "fut", "bus", {"line-color": "#1c2a2e", "line-width": 2, "line-opacity": .5, "line-dasharray": [2, 2]}),
+        leg("done-walk", "done", "walk", {"line-color": "#8a979b", "line-width": 3}),
+        leg("done-bus", "done", "bus", {"line-color": "#8a979b", "line-width": 3, "line-dasharray": [2, 2]}),
+        leg("now-walk", "now", "walk", {"line-color": "#d63a30", "line-width": 6}),
+        leg("now-bus", "now", "bus", {"line-color": "#d63a30", "line-width": 4, "line-dasharray": [2, 2]})
+      ]}
+  });
+  rmap.addControl(new maplibregl.NavigationControl({showCompass: false}), "top-left");
+  rmap.addControl(new maplibregl.ScaleControl({maxWidth: 140, unit: "metric"}), "bottom-left");
+  rmap.on("load", () => { rready = true; updateReal(true); });
+}
+function realVis() {
+  const vis = (id, on) => rmap.setLayoutProperty(id, "visibility", on ? "visible" : "none");
+  vis("b-clean", rbase === "clean"); vis("b-topo", rbase === "topo"); vis("b-osm", rbase === "osm"); vis("b-sat", rbase === "sat");
+  vis("hill", rbase === "clean"); vis("cartolab", rbase === "clean" && rtog.labels);
+  vis("cont", rtog.contour); vis("contlab", rtog.contour); vis("trails", rtog.trails);
+  [["baseClean", "clean"], ["baseSat", "sat"]].forEach(([id, k]) => $("#" + id).setAttribute("aria-pressed", rbase === k));
+  [["tgContour", "contour"], ["tgTrails", "trails"]].forEach(([id, k]) => $("#" + id).setAttribute("aria-pressed", rtog[k]));
+}
+function updateReal(fit) {
+  if (!rready) return;
+  rmap.resize();
+  realVis();
+  const legs = realLegs(), used = new Set(), allPts = [], dayPts = [], dayLegs = [];
+  const st = l => l.i < active ? "done" : l.i === active ? "now" : "fut";
+  let walkKm = 0;
+  rmap.getSource("legs").setData({type: "FeatureCollection", features: legs.map(l => ({type: "Feature", properties: {st: st(l), mv: l.mv}, geometry: {type: "LineString", coordinates: [[RLOC[l.a][1], RLOC[l.a][0]], [RLOC[l.b][1], RLOC[l.b][0]]]}}))});
+  legs.forEach(l => {
+    const A = RLOC[l.a], B = RLOC[l.b];
+    used.add(l.a); used.add(l.b); allPts.push(A, B);
+    if (l.i === active) { dayPts.push(A, B); dayLegs.push(l); if (l.mv === "walk") walkKm += hav(A, B); }
+  });
+  const x = days[active], here = x.loc;
+  days.forEach(d => { if (d.loc && RLOC[d.loc]) used.add(d.loc); });
+  rmarkers.forEach(m => m.remove()); rmarkers = [];
+  used.forEach(id => {
+    const el = document.createElement("div");
+    el.className = "rm" + (id === here ? " now" : "");
+    el.innerHTML = `<i></i><span>${RNAME[id] || id}</span>`;
+    el.addEventListener("click", ev => { ev.stopPropagation(); jumpLoc(id); });
+    rmarkers.push(new maplibregl.Marker({element: el, anchor: "center"}).setLngLat([RLOC[id][1], RLOC[id][0]]).addTo(rmap));
+  });
+  if (fit) {
+    const pts = realView === "all" ? allPts : dayPts.length ? dayPts : [RLOC[here]];
+    const b = pts.reduce((a, p) => [[Math.min(a[0][0], p[1]), Math.min(a[0][1], p[0])], [Math.max(a[1][0], p[1]), Math.max(a[1][1], p[0])]], [[180, 90], [-180, -90]]);
+    if (b[0][0] === b[1][0] && b[0][1] === b[1][1]) rmap.jumpTo({center: b[0], zoom: 12}); else rmap.fitBounds(b, {padding: 50, maxZoom: 13, duration: 600});
+  }
+  const est = x.st ? `，我估的步行距離約 ${x.st[0]} km` : "";
+  $("#realnote").textContent = `D${x.d} ${title(x)}：步行段的直線距離約 ${walkKm.toFixed(1)} km${est}。實線是步行，虛線是搭車或纜車，直線不是實際步道。棕色細線是等高線（粗線每 ${"500"} m 標高度），比例尺在左下角。`;
+  const g = a => RLOC[a].join(",");
+  $("#gmap").href = dayLegs.length
+    ? `https://www.google.com/maps/dir/?api=1&origin=${g(dayLegs[0].a)}&destination=${g(dayLegs[dayLegs.length - 1].b)}${dayLegs.length > 1 ? "&waypoints=" + dayLegs.slice(1).map(l => g(l.a)).join("|") : ""}&travelmode=walking`
+    : `https://www.google.com/maps/search/?api=1&query=${g(here)}`;
+}
+function drawReal() {
+  if (!rmap) initReal(); else updateReal(true);
+}
+
+function jumpLoc(id) {
+  const i = days.findIndex(x => !x.fly && x.loc === id);
+  if (i >= 0) { bigOpen(false); go(i, true); }
+}
+
+function paint() {
+  const x = days[active];
+  $("#dock").classList.toggle("compact", compact);
+  setMap();
+  $("#info").innerHTML = `<div class="when">D${x.d} · ${x.date}</div><h3>${title(x)}</h3>
+    <div class="meta">${x.time ? `<span>${x.time}</span>` : ""}${x.st ? `<span>${stText(x)}</span>` : ""}<span class="bed">住：${x.sleep}${x.alt ? ` · ${num(x.alt)} m` : ""}</span></div>
+    <p>${desc(x)}</p>
+    <div class="nav"><button class="btn" id="prev" type="button"${active === 0 ? " disabled" : ""}>◀ 前一天</button><button class="btn" id="next" type="button"${active === days.length - 1 ? " disabled" : ""}>下一天 ▶</button><button class="btn" id="mode" type="button">地圖：${mapMode === "follow" ? "跟隨" : "全覽"}</button><button class="btn" id="big" type="button">放大地圖</button><button class="btn" id="cmp" type="button">${compact ? "展開" : "精簡"}</button></div>
+    <div class="key"><span><i></i>今天</span><span><i class="g"></i>走過</span><span><i class="t"></i>搭車</span></div>`;
+  document.querySelectorAll(".day").forEach(li => li.classList.toggle("active", +li.dataset.i === active));
+  chart();
+  drawFP();
+  fitDock();
+}
+
+function chart() {
+  const pts = days.filter(x => x.alt !== undefined);
+  const W = 90 + pts.length * 46, H = 270, L = 40, R = 16, T = 28, B = 36, MAX = 3000;
+  const xs = i => L + i * (W - L - R) / (pts.length - 1);
+  const ys = a => T + (1 - a / MAX) * (H - T - B);
+  const g = [0, 1000, 2000, 3000].map(v => `<line class="grid" x1="${L}" x2="${W - R}" y1="${ys(v)}" y2="${ys(v)}"/><text x="${L - 6}" y="${ys(v) + 3}" text-anchor="end">${v}</text>`).join("");
+  const line = pts.map((p, i) => `${xs(i)},${ys(p.alt)}`).join(" ");
+  const area = `${xs(0)},${ys(0)} ${line} ${xs(pts.length - 1)},${ys(0)}`;
+  const segs = pts.slice(1).map((p, i) => `<line class="ln${p.mv === "bus" ? " bus" : ""}" x1="${xs(i)}" y1="${ys(pts[i].alt)}" x2="${xs(i + 1)}" y2="${ys(p.alt)}"/>`).join("");
+  const dots = pts.map((p, i) => `<g data-d="${p.d}"><circle class="${p.town ? "town" : "hut"}" cx="${xs(i)}" cy="${ys(p.alt)}" r="5"/>` +
+    (p.d === active ? `<circle class="ring" cx="${xs(i)}" cy="${ys(p.alt)}" r="10"/>` : "") +
+    `<text x="${xs(i)}" y="${ys(p.alt) - 14}" text-anchor="middle">${num(p.alt)}</text>` +
+    `<text x="${xs(i)}" y="${H - 14}" text-anchor="middle">D${p.d}</text></g>`).join("");
+  $("#profile").innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="min-width:${Math.round(W * .92)}px" role="img" aria-label="每晚過夜高度折線圖">${g}<polygon class="area" points="${area}"/>${segs}${dots}</svg>`;
+}
+
+function fitDock() { document.documentElement.style.setProperty("--dockh", ($("#dock").offsetHeight + 12) + "px"); }
+function go(i, scroll) {
+  active = Math.max(0, Math.min(days.length - 1, i));
+  paint();
+  if (scroll) document.querySelector(`.day[data-i="${active}"]`).scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start"});
+}
+
+function setPlan(n) {
+  cur = n; days = build(n); active = Math.min(1, days.length - 1);
+  renderStatic(); lists(); paint();
+}
+
+$("#plans").innerHTML = Object.keys(PLANS).map(n => `<button class="plan" type="button" data-n="${n}" aria-pressed="false">
+  ${PLANS[n].pick ? `<em>${PLANS[n].pick}</em>` : ""}<b>${PLANS[n].name}</b><span>${PLANS[n].tag}</span><small>${range(+n)}</small></button>`).join("");
+$("#plans").addEventListener("click", e => {
+  const b = e.target.closest(".plan");
+  if (!b) return;
+  try { localStorage.setItem("dolomiti-plan", b.dataset.n); } catch (err) {}
+  setPlan(+b.dataset.n);
+});
+$("#days").addEventListener("click", e => { const li = e.target.closest(".day"); if (li) go(+li.dataset.i, false); });
+$("#days").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { const li = e.target.closest(".day"); if (li) { e.preventDefault(); go(+li.dataset.i, false); } } });
+$("#info").addEventListener("click", e => {
+  if (e.target.id === "prev") go(active - 1, true);
+  if (e.target.id === "next") go(active + 1, true);
+  if (e.target.id === "mode") { mapMode = mapMode === "follow" ? "all" : "follow"; try { localStorage.setItem("dolomiti-map", mapMode); } catch (err) {} paint(); }
+  if (e.target.id === "big") bigOpen(true);
+  if (e.target.id === "cmp") { compact = !compact; try { localStorage.setItem("dolomiti-compact", compact ? "1" : "0"); } catch (err) {} paint(); }
+});
+document.addEventListener("click", e => {
+  const g = e.target.closest("[data-loc]");
+  if (g) jumpLoc(g.dataset.loc);
+  if (e.target.id === "modal" || e.target.id === "bigclose") bigOpen(false);
+  if (e.target.id === "mPrev" || e.target.id === "mNext") { go(active + (e.target.id === "mNext" ? 1 : -1), false); showBig(bigTab); }
+  if (e.target.id === "tabReal") showBig("real");
+  if (e.target.id === "tabSch") showBig("sch");
+  if (e.target.id === "viewAll") { realView = "all"; updateReal(true); }
+  if (e.target.id === "viewDay") { realView = "day"; updateReal(true); }
+  const bm = {baseClean: "clean", baseSat: "sat"}[e.target.id];
+  if (bm) { rbase = bm; updateReal(false); }
+  const tm = {tgContour: "contour", tgTrails: "trails"}[e.target.id];
+  if (tm) { rtog[tm] = !rtog[tm]; updateReal(false); }
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("#modal").hidden) bigOpen(false); });
+$("#profile").addEventListener("click", e => { const g = e.target.closest("[data-d]"); if (g) go(+g.dataset.d, true); });
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-ph]");
+  if (b) { const [d, j] = b.dataset.ph.split(",").map(Number); lbShow(d, j); return; }
+  if (e.target.id === "lb" || e.target.id === "lbclose") $("#lb").hidden = true;
+  if (e.target.id === "lbprev") lbShow(lb.d, lb.j - 1);
+  if (e.target.id === "lbnext") lbShow(lb.d, lb.j + 1);
+});
+document.addEventListener("keydown", e => {
+  if ($("#lb").hidden) return;
+  if (e.key === "Escape") $("#lb").hidden = true;
+  if (e.key === "ArrowLeft") lbShow(lb.d, lb.j - 1);
+  if (e.key === "ArrowRight") lbShow(lb.d, lb.j + 1);
+});
+document.addEventListener("keydown", e => {
+  if (!$("#lb").hidden) return;
+  if (/INPUT|TEXTAREA|BUTTON/.test(document.activeElement.tagName) && e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  if (document.activeElement.tagName === "INPUT") return;
+  if (e.key === "ArrowRight") go(active + 1, true);
+  if (e.key === "ArrowLeft") go(active - 1, true);
+});
+window.addEventListener("resize", () => { drawFP(); setMap(); if (!$("#modal").hidden) { if (bigTab === "sch") drawBig(); else if (rmap) rmap.resize(); } fitDock(); });
+$("#fp").addEventListener("click", e => {
+  const x = e.clientX - $("#fp").getBoundingClientRect().left, s = fpSpans.find(p => x >= p.x0 && x <= p.x1);
+  if (s) go(s.d, true);
+});
+
+// 複製訂房信
+$("#huts").addEventListener("click", e => {
+  const b = e.target.closest("[data-mail]");
+  if (!b) return;
+  const r = (window.__rows || []).find(x => days[+b.dataset.mail] && x.name === days[+b.dataset.mail].sleep && x.dt === days[+b.dataset.mail].dt);
+  if (!r) return;
+  const text = mailText(r), done = () => { const t = b.textContent; b.textContent = "已複製"; setTimeout(() => b.textContent = t, 1500); };
+  const fallback = () => { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); done(); } catch (err) {} ta.remove(); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+});
+
+setPlan(cur);
+const applyRemote = r => { Object.assign(saved, r); try { localStorage.setItem("dolomiti-check", JSON.stringify(saved)); } catch (err) {} lists(); };
+SYNC.sync(applyRemote);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) SYNC.sync(applyRemote); });
+</script>

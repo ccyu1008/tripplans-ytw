@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>海岸到海岸健行手冊</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=DM+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Layout: one column like a trail guide; CAI red-white-red waymark stripe as the only ornament; days as a signposted list. */
+:root {
+  --bg: #eceeef;
+  --surface: #f8f9f9;
+  --fg: #1c2a2e;
+  --muted: #5c6b70;
+  --line: #cfd6d8;
+  --red: #c8322a;
+  --red-tint: rgba(200, 50, 42, .12);
+  --green: #2f5d50;
+  --gold: #a8741a;
+  --f-display: "Big Shoulders Display", "Noto Sans TC", sans-serif;
+  --f-body: "Noto Sans TC", system-ui, sans-serif;
+  --f-mono: "DM Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12191b; --surface: #1b2427; --fg: #e6ebec; --muted: #94a3a8; --line: #2e3b3f;
+    --red: #ec6a60; --red-tint: rgba(236, 106, 96, .16); --green: #7fb8a6; --gold: #d9a441;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12191b; --surface: #1b2427; --fg: #e6ebec; --muted: #94a3a8; --line: #2e3b3f;
+  --red: #ec6a60; --red-tint: rgba(236, 106, 96, .16); --green: #7fb8a6; --gold: #d9a441;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.7 var(--f-body);
+  padding-block: 0 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 880px; margin: 0 auto; display: grid; gap: 40px; }
+.stripe { height: 14px; margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); background: linear-gradient(var(--red) 0 33%, #fff 33% 66%, var(--red) 66%); }
+:root[data-theme="dark"] .stripe { background: linear-gradient(var(--red) 0 33%, #e6ebec 33% 66%, var(--red) 66%); }
+header { padding-top: 32px; display: grid; gap: 14px; }
+.eyebrow { font: 500 12px var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+h1 { font: 800 clamp(44px, 9vw, 76px)/.95 var(--f-display); letter-spacing: .01em; margin: 0; text-wrap: balance; }
+h1 em { font-style: normal; color: var(--red); }
+.lede { max-width: 62ch; color: var(--muted); margin: 0; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.stats div { background: var(--surface); padding: 12px 14px; min-width: 0; }
+.stats b { display: block; font: 800 28px/1.1 var(--f-display); font-variant-numeric: tabular-nums; }
+.stats span { font-size: 12px; color: var(--muted); }
+h2 { font: 800 28px/1.1 var(--f-display); letter-spacing: .03em; margin: 0 0 14px; display: flex; align-items: center; gap: 10px; }
+h2::before { content: ""; width: 10px; height: 22px; background: var(--red); }
+.note { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+.plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.plan { font: inherit; text-align: left; color: var(--fg); background: var(--surface); border: 1px solid var(--line); padding: 12px 14px; cursor: pointer; display: grid; gap: 4px; align-content: start; }
+.plan b { font: 800 26px/1 var(--f-display); }
+.plan span { font-size: 13px; color: var(--muted); }
+.plan:hover { border-color: var(--muted); }
+.plan[aria-pressed="true"] { border-color: var(--red); background: var(--red-tint); box-shadow: inset 0 -3px 0 var(--red); }
+.plan em { font: 500 11px var(--f-mono); font-style: normal; color: var(--red); }
+.chart { overflow-x: auto; border: 1px solid var(--line); background: var(--surface); }
+.chart svg { display: block; width: 100%; height: auto; }
+.chart text { font: 400 10px var(--f-mono); fill: var(--muted); }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .area { fill: var(--red-tint); }
+.chart .ln { fill: none; stroke: var(--red); stroke-width: 2; }
+.chart .hut { fill: var(--red); stroke: var(--surface); stroke-width: 2; }
+.chart .town { fill: var(--surface); stroke: var(--muted); stroke-width: 2; }
+.legend { display: flex; gap: 18px; flex-wrap: wrap; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); position: sticky; left: 0; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+.days { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.day { display: grid; grid-template-columns: 84px minmax(0, 1fr); background: var(--surface); border: 1px solid var(--line); }
+.day .tag { padding: 12px; border-right: 1px solid var(--line); display: grid; align-content: start; gap: 2px; }
+.day .tag b { font: 800 28px/1 var(--f-display); }
+.day .tag span { font: 400 11px var(--f-mono); color: var(--muted); }
+.day .body { padding: 12px 16px; min-width: 0; display: grid; gap: 6px; }
+.day h3 { margin: 0; font: 700 17px/1.4 var(--f-body); text-wrap: balance; }
+.day p { margin: 0; color: var(--muted); font-size: 14px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font: 400 12px var(--f-mono); color: var(--muted); }
+.meta .bed { color: var(--fg); }
+.pill { font: 500 11px var(--f-mono); padding: 1px 8px; border: 1px solid currentColor; border-radius: 99px; }
+.lv-0 { color: var(--muted); } .lv-1 { color: var(--green); } .lv-2 { color: var(--gold); } .lv-3 { color: var(--red); }
+.day.fly { background: transparent; border-style: dashed; }
+.day.rest { border-left: 4px solid var(--green); }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.box { background: var(--surface); border: 1px solid var(--line); padding: 14px 16px; min-width: 0; }
+.box h3 { margin: 0 0 6px; font: 700 15px var(--f-body); }
+.box ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+.box li + li { margin-top: 4px; }
+.check { list-style: none; padding: 0 !important; display: grid; gap: 2px; }
+.check label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; padding: 3px 0; color: var(--fg); }
+.check input { margin-top: 5px; accent-color: var(--red); }
+.check input:checked + span { color: var(--muted); text-decoration: line-through; }
+:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+.fine { font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; }
+@media (max-width: 480px) { .day { grid-template-columns: 64px minmax(0, 1fr); } .day .tag { padding: 10px 8px; } }
+</style>
+<style>
+.stripe { background: linear-gradient(var(--green) 0 50%, #2b6f9e 50%); }
+</style>
+
+<div class="stripe"></div>
+<div class="wrap">
+<header>
+  <div class="eyebrow" id="eyebrow"></div>
+  <h1>海岸到海岸<em>健行</em></h1>
+  <p class="lede" id="lede"></p>
+  <div class="stats" id="stats"></div>
+</header>
+
+<section>
+  <h2>選擇天數</h2>
+  <p class="note">兩個方案都從 St Bees（愛爾蘭海）走到 Robin Hood's Bay（北海），以回程班機日往前推出發日。</p>
+  <div class="plans" id="plans"></div>
+</section>
+
+<section>
+  <h2>每晚過夜高度</h2>
+  <p class="note">實心點是沿途村鎮住宿，空心點是起訖與轉乘城鎮。</p>
+  <div class="chart"><div id="profile"></div>
+    <div class="legend"><span><i style="background:var(--red)"></i>步行住宿</span><span><i style="border:2px solid var(--muted)"></i>起訖／城鎮</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>逐日行程</h2>
+  <p class="note" id="daynote"></p>
+  <ol class="days" id="days"></ol>
+</section>
+
+<section>
+  <h2>訂房與行李</h2>
+  <div class="grid2">
+    <div class="box"><h3>住宿預約</h3><ul>
+      <li>沿途 B&amp;B 和旅店不多，旺季（5~9 月）很早滿，行程確定就先訂，Rosthwaite、Patterdale、Keld、Danby Wiske、Blakey Ridge 最容易沒房。</li>
+      <li>Clay Bank 附近沒有住宿，要訂 Great Broughton 或 Chop Gate 一帶，多數民宿可接送。</li>
+      <li>Danby Wiske 房很少，訂不到可請民宿接送到鄰近村落。</li></ul></div>
+    <div class="box"><h3>預算與行李</h3><ul>
+      <li id="cash"></li>
+      <li>可用行李轉運服務（Sherpa Van、Packhorse 等），每件每天約 £10~15，日間只背水和雨具，這是估計值。</li>
+      <li>部分小村 ATM 少，現金帶一點備用。</li></ul></div>
+  </div>
+</section>
+
+<section>
+  <h2>出發前清單</h2>
+  <div class="box"><ul class="check" id="check"></ul></div>
+</section>
+
+<section>
+  <h2>天氣與緊急</h2>
+  <div class="grid2">
+    <div class="box"><h3>天氣</h3><ul>
+      <li>英國天氣變化快，一天可能晴、雨、風都有，雨具隨身。</li>
+      <li>湖區高路線和 Nine Standards、North York Moors 荒原容易起霧，起霧或強風改走低路線。</li>
+      <li>用 Met Office 和 Mountain Weather Information Service 看預報。</li></ul></div>
+    <div class="box"><h3>緊急</h3><ul>
+      <li>英國緊急電話 999 或 112，山區遇難請說要找 Mountain Rescue。</li>
+      <li>確認旅平險涵蓋健行與搜救。</li>
+      <li>跟住宿主人說明天的目的地和預計抵達時間。</li></ul></div>
+  </div>
+</section>
+
+<p class="fine">此手冊依 Wainwright 的 Coast to Coast 常見分段整理，距離、爬升、時間、價格和住宿地點皆為概估，不是官方資料，請出發前對照 OS 地圖、路書和各住宿確認。Nine Standards 有依季節與保育狀態調整的路線，請以現場告示為準。</p>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const LV = ["", "輕鬆", "中等", "吃力"];
+const WD = "日一二三四五六";
+const END = [2027, 5, 30]; // 回程班機日 [年, 月-1, 日]，改這行即可換季節
+
+// st = [km, 上升 m, 下降 m]，全部為估計值
+const DEF = {
+  fly: {fly: 1, sleep: "機上", lv: 0},
+  arr: {t: "英國 → St Bees", r: "飛 Manchester 或 London，轉火車到 Carlisle，再搭海岸線到 St Bees。到海邊把腳浸一下愛爾蘭海，撿一顆小石子帶到終點丟進北海。", sleep: "St Bees 旅館", alt: 20, town: 1, lv: 0},
+  s1: {t: "St Bees → Ennerdale Bridge", r: "沿 St Bees Head 海崖走，再翻 Dent Fell 下到 Ennerdale Bridge。第一天就是長距離，起步別太快。", time: "約 7~8 小時", sleep: "Ennerdale Bridge", alt: 80, lv: 2, st: [23, 550, 480], est: 1},
+  s2: {t: "Ennerdale Bridge → Rosthwaite", r: "高路線走 Red Pike、High Stile、Haystacks，低路線沿 Ennerdale 湖到 Black Sail Hut 再上 Loft Beck，最後都下到 Borrowdale。天氣不好走低路線。", time: "約 8~9 小時", sleep: "Rosthwaite", alt: 100, lv: 3, tag: "湖區高路線", st: [23, 850, 870], est: 1},
+  s3: {t: "Rosthwaite → Grasmere", r: "經 Greenup Edge 翻到 Grasmere。路徑潮濕泥濘，起霧時 Greenup Edge 容易走錯，導航要看緊。", time: "約 5~6 小時", sleep: "Grasmere", alt: 60, lv: 2, st: [14, 550, 570], est: 1},
+  rest1: {t: "休息日：Grasmere", r: "湖區走完一半，休息一天，晾衣服、補給。", sleep: "Grasmere", alt: 60, lv: 0, rest: 1},
+  s4: {t: "Grasmere → Patterdale", r: "爬上 Grisedale Tarn 再下到 Patterdale。Helvellyn 繞路要手腳並用，不建議排進來。", time: "約 5~6 小時", sleep: "Patterdale", alt: 150, lv: 2, st: [13.5, 700, 700], est: 1},
+  s5: {t: "Patterdale → Shap", r: "越過 Angle Tarn 到 Kidsty Pike（約 780 m，全程最高點），再沿 Haweswater 下到 Shap Abbey 和 Shap。湖區最後一天。", time: "約 8 小時", sleep: "Shap", alt: 270, lv: 2, st: [25, 800, 770], est: 1},
+  s6: {t: "Shap → Kirkby Stephen", r: "進入 Eden 谷地，地形平緩但很長，沿途經過 Orton。全程最長的一天之一，早出發。", time: "約 8~9 小時", sleep: "Kirkby Stephen", alt: 130, lv: 2, st: [32, 450, 600], est: 1},
+  s7: {t: "Kirkby Stephen → Keld", r: "經 Nine Standards Rigg 的九座石塔，上段多沼澤，依現場告示選當季路線。下到 Swaledale 上游的小村 Keld。", time: "約 6~7 小時", sleep: "Keld", alt: 330, lv: 2, tag: "荒原沼澤", st: [20, 560, 350], est: 1},
+  s8: {t: "Keld → Reeth", r: "高路線走 Gunnerside Gill 舊礦區，低路線沿 Swale 河與草場，兩條都到 Reeth。起霧改走低路線。", time: "約 5~6 小時", sleep: "Reeth", alt: 200, lv: 1, st: [18, 300, 430], est: 1},
+  s9: {t: "Reeth → Richmond", r: "沿 Swale 河經 Marrick Priory，下午進到 Richmond，鎮上有城堡和市集廣場。", time: "約 5~6 小時", sleep: "Richmond", alt: 100, lv: 1, st: [18, 250, 380], est: 1},
+  rest2: {t: "休息日：Richmond", r: "補給、洗衣，逛 Richmond Castle。前面翻山很累，後面是平原段，休息一下。", sleep: "Richmond", alt: 100, lv: 0, rest: 1},
+  s10: {t: "Richmond → Danby Wiske", r: "進入平原，一整天都是田野，景色變化少，算是心理考驗。住宿很少，務必先訂。", time: "約 6~7 小時", sleep: "Danby Wiske", alt: 40, lv: 1, st: [22, 150, 200], est: 1},
+  s11: {t: "Danby Wiske → Osmotherley", r: "越過 A19，再爬到 North York Moors 山腳，傍晚抵達 Osmotherley。", time: "約 5~6 小時", sleep: "Osmotherley", alt: 180, lv: 1, st: [19, 250, 100], est: 1},
+  s12: {t: "Osmotherley → Clay Bank", r: "踏上 Cleveland Hills 稜線，一路上下好幾座小丘，風大無遮蔽。Clay Bank 沒有住宿，先訂 Great Broughton 或 Chop Gate 的民宿接送。", time: "約 6~7 小時", sleep: "Great Broughton / Chop Gate", alt: 150, lv: 2, st: [19, 700, 500], est: 1},
+  s13: {t: "Clay Bank → Blakey Ridge", r: "穿越荒原最高段，風景開闊。Lion Inn 是荒原上的老酒館，旺季常滿，先訂。", time: "約 5~6 小時", sleep: "Lion Inn（Blakey Ridge）", alt: 430, lv: 2, tag: "荒原無遮蔽", st: [17, 400, 300], est: 1},
+  s14: {t: "Blakey Ridge → Grosmont", r: "沿荒原邊緣下行，經過 Glaisdale，到 Grosmont 蒸汽火車站。", time: "約 5~6 小時", sleep: "Grosmont", alt: 15, lv: 1, st: [19, 150, 500], est: 1},
+  s15: {t: "Grosmont → Robin Hood's Bay", r: "最後一天，先走 Littlebeck 森林，再沿海岸到 Robin Hood's Bay。到海邊把石子丟進北海，完成儀式。", time: "約 7~8 小時", sleep: "Robin Hood's Bay 旅館", alt: 10, town: 1, lv: 2, st: [24, 500, 520], est: 1},
+  ret: {t: "Robin Hood's Bay → Whitby → 英國機場", r: "搭巴士到 Whitby，再轉火車或巴士到 York 或 London，回程班機當天要提早到機場，時刻先查。", sleep: "York 或 London 旅館", alt: 20, town: 1, lv: 0}
+};
+const W1 = ["s1","s2","s3","s4","s5","s6","s7","s8","s9","s10","s11","s12","s13","s14","s15"];
+const PLANS = {
+  15: {name: "15 天步行", sub: "標準分段", desc: "每天走一段，沒有休息日，走完 15 段。",
+    ids: ["fly","arr",...W1,"ret","fly"]},
+  17: {name: "17 天步行", sub: "標準 + 2 休息日", desc: "在 Grasmere 和 Richmond 各多住一晚，翻山之間有休息，遇到壞天氣也有緩衝。", pick: "建議",
+    ids: ["fly","arr","s1","s2","s3","rest1","s4","s5","s6","s7","s8","s9","rest2","s10","s11","s12","s13","s14","s15","ret","fly"]}
+};
+
+let cur = 17;
+try { const s = +localStorage.getItem("c2c-plan"); if (PLANS[s]) cur = s; } catch (e) {}
+
+function build(n) {
+  const ids = PLANS[n].ids, N = ids.length;
+  return ids.map((id, i) => {
+    const dt = new Date(END[0], END[1], END[2] - (N - 1) + i);
+    return {...DEF[id], d: i, date: `${dt.getMonth() + 1}/${dt.getDate()} ${WD[dt.getDay()]}`, y: dt.getFullYear(), m: dt.getMonth() + 1};
+  });
+}
+const num = n => n.toLocaleString();
+
+function render() {
+  const days = build(cur), P = PLANS[cur];
+  const beds = days.filter(x => !x.fly);
+  const walks = days.filter(x => x.st);
+  const sum = k => walks.reduce((a, x) => a + x.st[k], 0);
+
+  document.querySelectorAll(".plan").forEach(b => b.setAttribute("aria-pressed", +b.dataset.n === cur));
+  $("#eyebrow").textContent = `Wainwright's Coast to Coast · England · ${days[0].y} / ${String(days[0].m).padStart(2, "0")}`;
+  $("#lede").textContent = `兩個人從 St Bees 走到 Robin Hood's Bay，橫越湖區、約克郡谷地和 North York Moors。目前是 ${P.name}方案：${P.desc}`;
+  $("#stats").innerHTML = [
+    [days.length + " 天", "含來回機程"], [beds.length + " 晚", "地面住宿"], [walks.length + " 天", "實際健行"],
+    ["約 " + Math.round(sum(0)) + " km", "總距離"], ["約 " + num(sum(1)) + " m", "總上升"], ["約 " + num(sum(2)) + " m", "總下降"],
+    ["約 780 m", "最高點 Kidsty Pike"]].map(([b, s]) => `<div><b>${b}</b><span>${s}</span></div>`).join("");
+  $("#daynote").textContent = `時間是一般步行時間，不含休息。距離與爬升為估計值。分段、住宿和巴士時刻每年不同，出發前請對照當年路書和各住宿。`;
+  $("#cash").textContent = `B&B 雙人房含早餐每晚約 £90~140，${beds.length} 晚約 £${num(beds.length * 90)}~${num(beds.length * 140)}，估計值，不含午晚餐。`;
+
+  $("#days").innerHTML = days.map(x => `
+    <li class="day${x.fly ? " fly" : ""}${x.rest ? " rest" : ""}">
+      <div class="tag"><b>D${x.d}</b><span>${x.date}</span></div>
+      <div class="body">
+        <h3>${x.fly ? (x.d === 0 ? "搭夜機 台北 → 英國" : "英國 → 台北") : x.t}</h3>
+        <p>${x.fly ? (x.d === 0 ? "需轉機一次。" : "回程班機，隔天抵達。") : x.r}</p>
+        <div class="meta">
+          ${x.time ? `<span>${x.time}</span>` : ""}
+          ${x.st ? `<span>${x.est ? "約 " : ""}${x.st[0]} km · ↑${num(x.st[1])} ↓${num(x.st[2])} m</span>` : ""}
+          ${x.lv ? `<span class="pill lv-${x.lv}">${LV[x.lv]}</span>` : ""}
+          ${x.tag ? `<span class="pill lv-3">${x.tag}</span>` : ""}
+          <span class="bed">住：${x.sleep}${x.alt ? ` · 約 ${num(x.alt)} m` : ""}</span>
+        </div>
+      </div>
+    </li>`).join("");
+
+  chart(days);
+  checklist(beds);
+}
+
+function chart(days) {
+  const pts = days.filter(x => x.alt !== undefined);
+  const W = 90 + pts.length * 46, H = 270, L = 40, R = 16, T = 28, B = 36, MAX = 500;
+  const xs = i => L + i * (W - L - R) / (pts.length - 1);
+  const ys = a => T + (1 - a / MAX) * (H - T - B);
+  const g = [0, 250, 500].map(v => `<line class="grid" x1="${L}" x2="${W - R}" y1="${ys(v)}" y2="${ys(v)}"/><text x="${L - 6}" y="${ys(v) + 3}" text-anchor="end">${v}</text>`).join("");
+  const line = pts.map((p, i) => `${xs(i)},${ys(p.alt)}`).join(" ");
+  const area = `${xs(0)},${ys(0)} ${line} ${xs(pts.length - 1)},${ys(0)}`;
+  const dots = pts.map((p, i) => `<circle class="${p.town ? "town" : "hut"}" cx="${xs(i)}" cy="${ys(p.alt)}" r="5"/>` +
+    `<text x="${xs(i)}" y="${ys(p.alt) - 11}" text-anchor="middle">${num(p.alt)}</text>` +
+    `<text x="${xs(i)}" y="${H - 14}" text-anchor="middle">D${p.d}</text>`).join("");
+  $("#profile").innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="min-width:${Math.round(W * .92)}px" role="img" aria-label="每晚過夜高度折線圖">${g}<polygon class="area" points="${area}"/><polyline class="ln" points="${line}"/>${dots}</svg>`;
+}
+
+const BASE_ITEMS = ["機票與英國來回交通", "英國 ETA 電子旅行許可（台灣護照需事先申請，出發前到官方網站確認）", "旅平險含健行與山區救援",
+  "行李轉運預約（Sherpa Van、Packhorse 等）", "英鎊現金與可用的信用卡", "防水外套與雨褲", "防水背包套與內袋",
+  "已磨合的防水登山鞋與備用襪", "登山杖", "OS 地圖或離線地圖 App，加路書", "行動電源與英規 G 型轉接頭", "護照與保險資料紙本"];
+let saved = {};
+try { saved = JSON.parse(localStorage.getItem("c2c-check") || "{}"); } catch (e) {}
+// 雲端同步（Firestore REST）：網址帶 #k=密鑰 才啟用，沒有就只存本機。規則只放行帶這把密鑰的兩個文件。
+const SYNC = (() => {
+  const API = "https://firestore.googleapis.com/v1/projects/travel-plans-ytw/databases/(default)/documents/trips/", KEY = "AIzaSyAo1lMYkAOJcjh36DGJerCN2EJ_R7rZ8c4", SUF = "c2c";
+  let k = "";
+  try { const m = /[#&]k=([\w-]+)/.exec(location.hash); if (m) localStorage.setItem("trip-key", m[1]); k = localStorage.getItem("trip-key") || ""; } catch (e) {}
+  const url = () => API + k + "-" + SUF + "?key=" + KEY;
+  const pull = async () => { const r = await fetch(url()); if (r.status === 404) return {}; if (!r.ok) throw r.status; return JSON.parse((((await r.json()).fields || {}).check || {}).stringValue || "{}"); };
+  // ponytail: 先讀再寫，兩人同一秒勾同一份清單才會互蓋，夠用
+  const push = async (key, val) => { if (!k) return; try { const c = {...await pull(), [key]: val}; await fetch(url() + "&updateMask.fieldPaths=check", {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fields: {check: {stringValue: JSON.stringify(c)}}})}); } catch (e) {} };
+  const sync = async apply => { if (!k) return; try { apply(await pull()); } catch (e) {} };
+  return {push, sync};
+})();
+
+function checklist(beds) {
+  const names = [...new Set(beds.map(x => x.sleep))];
+  const items = [`訂好 ${names.length} 處住宿：${names.join("、")}`, ...BASE_ITEMS];
+  $("#check").innerHTML = items.map((t, i) => `<li><label><input type="checkbox" id="c${i}"${saved[t] ? " checked" : ""} data-k="${t.replace(/"/g, "&quot;")}"><span>${t}</span></label></li>`).join("");
+}
+$("#check").addEventListener("change", e => {
+  saved[e.target.dataset.k] = e.target.checked;
+  try { localStorage.setItem("c2c-check", JSON.stringify(saved)); } catch (err) {}
+  SYNC.push(e.target.dataset.k, e.target.checked);
+});
+
+$("#plans").innerHTML = Object.keys(PLANS).map(n => `<button class="plan" type="button" data-n="${n}" aria-pressed="false">
+  ${PLANS[n].pick ? `<em>${PLANS[n].pick}</em>` : ""}<b>${PLANS[n].name}</b><span>${PLANS[n].sub}</span></button>`).join("");
+$("#plans").addEventListener("click", e => {
+  const b = e.target.closest(".plan");
+  if (!b) return;
+  cur = +b.dataset.n;
+  try { localStorage.setItem("c2c-plan", cur); } catch (err) {}
+  render();
+});
+render();
+const applyRemote = r => { Object.assign(saved, r); try { localStorage.setItem("c2c-check", JSON.stringify(saved)); } catch (err) {} render(); };
+SYNC.sync(applyRemote);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) SYNC.sync(applyRemote); });
+</script>
