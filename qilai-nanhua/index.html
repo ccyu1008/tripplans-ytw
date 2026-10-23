@@ -121,7 +121,7 @@ th { color:var(--mut); font-weight:500; font-size:12px; }
   .dock { height:clamp(220px,34vh,320px); }
   .player { gap:4px 6px; }
   #play { flex:none; } #readout { flex:1 1 0; min-width:0; overflow:hidden; text-overflow:ellipsis; font-size:11.5px; }
-  .player select { font-size:16px; padding:0 2px; flex:none; } #sun { flex:none; order:3; } #speed { order:2; }
+  #speed { flex:none; } #sun { flex:none; order:3; } #speed { order:2; }
   .player input[type=range] { order:5; flex:1 1 100%; min-width:0; height:20px; }
   .dock:not(.zoomed) .rm:not(.pk) span { display:none; }
   .dock.zoomed { padding-top:max(10px, env(safe-area-inset-top)); padding-bottom:max(10px, env(safe-area-inset-bottom)); }
@@ -131,6 +131,10 @@ th { color:var(--mut); font-weight:500; font-size:12px; }
   .sum b { font-size:17px; }
 }
 @media (pointer:coarse) { .dock:not(.zoomed) #realmap, .dock:not(.zoomed) #realmap .maplibregl-canvas { touch-action:pan-y !important; } }   /* 縮小時地圖不搶捲動;放大後才能拖曳縮放 */
+.maplibregl-ctrl-attrib.maplibregl-compact { min-height:14px; margin:0 4px 4px 0; font-size:8px; line-height:1.3; }
+.maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-button { width:14px; height:14px; background-size:11px; }
+.maplibregl-ctrl-attrib.maplibregl-compact-show { padding:1px 18px 1px 4px; }
+.maplibregl-ctrl-scale { font-size:9px; padding:0 3px; }
 </style>
 <header class="hero wrap">
   <p class="kicker">2026 · 11 · 05 — 11 · 08</p>
@@ -172,7 +176,7 @@ th { color:var(--mut); font-weight:500; font-size:12px; }
       <button class="btn" id="play" type="button">▶<span class="lg"> 播放</span></button>
       <span id="readout"></span>
       <input id="scrub" type="range" min="0" max="100" value="0" aria-label="計畫時間軸">
-      <select id="speed" aria-label="速度"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select>
+      <button class="btn" id="speed" type="button" title="播放速度,點一下切換">中</button>
       <label class="lg"><input id="follow" type="checkbox"> 跟隨</label>
       <button class="btn" id="sun" type="button" aria-pressed="true" title="依太陽高度替剖面上色(未計地形遮蔽)">☀<span class="lg"> 日照</span></button>
     </div>
@@ -361,7 +365,7 @@ function skyColor(h) {
   for (let k = 0; k < SKY.length - 1; k++) { const [h0, c0] = SKY[k], [h1, c1] = SKY[k + 1];
     if (h >= h0 && h <= h1) { const f = (h - h0) / (h1 - h0); return `rgb(${c0.map((v, j) => Math.round(v + f * (c1[j] - v)))})`; } }
 }
-const sunLabel = h => h > 0 ? `☀ +${Math.round(h)}°` : h > -6 ? '☀ 曙暮光' : '☾ 夜';
+const sunLabel = h => h > 5 ? '☀ 白天' : h > -6 ? '◐ 晨昏' : '☾ 夜晚';   // 晨昏 = 日出前後、天色微亮或微暗
 function sunTimes(d) {   // 以奇萊南峰位置算日出/日落
   const w = W('奇萊南峰'); let rise = null, set = null, prev = sunAlt(w.lat, w.lon, d, 0);
   for (let c = 1; c < 1440; c++) { const h = sunAlt(w.lat, w.lon, d, c); if (prev < -0.83 && h >= -0.83) rise = c; if (prev >= -0.83 && h < -0.83) set = c; prev = h; }
@@ -436,7 +440,7 @@ function show(i, t, pan) {
     $('#curd').setAttribute('cx', PV.X(r[3])); $('#curd').setAttribute('cy', PV.Y(r[2])); }
   const alt = sunAlt(r[0], r[1], day === 'all' ? o.d : day, o.c);
   $('#scrub').value = t;
-  $('#readout').innerHTML = `<b>${lab(o)}</b>・${r[3]}km・${r[2]}m・${g > 0 ? '+' : ''}${g}%${sunOn ? '・' + sunLabel(alt) : ''}`; $('#readout').title = `計畫 ${lab(o)};紀錄當天 ${r[4]}`;
+  $('#readout').innerHTML = `<b>${lab(o)}</b>・${r[3]}km・${r[2]}m${sunOn ? '・' + sunLabel(alt) : ''}`; $('#readout').title = `計畫 ${lab(o)};紀錄當天 ${r[4]}`;
   if (!ready || mode === 'prof' || mode === 'off') return;
   hover.setLngLat([r[1], r[0]]).addTo(map);
   map.getSource('prog').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: rows.slice(0, i + 1).map(q => [q[1], q[0]]) } });
@@ -445,10 +449,12 @@ function show(i, t, pan) {
 }
 const byIndex = (i, pan) => show(i, tAt(Math.round(i)).t, pan);
 const byT = (t, pan) => show(iAt(t), t, pan);
+const SPD = [['慢', 0.5], ['中', 1], ['快', 3]]; let spd = 1;
+$('#speed').onclick = () => { spd = (spd + 1) % SPD.length; $('#speed').textContent = SPD[spd][0]; };
 function pause() { playing = false; $('#play').innerHTML = '▶<span class="lg"> 播放</span>'; }
 function tick(ts) {
   if (!playing) return;
-  curT += (ts - lastT) / 1000 * 24 * +$('#speed').value; lastT = ts;     // 1× = 每秒 24 個計畫分鐘(Day1 約 17 秒、Day2 約 34 秒)
+  curT += (ts - lastT) / 1000 * 24 * SPD[spd][1]; lastT = ts;     // 中 = 每秒 24 個計畫分鐘(Day1 約 17 秒、Day2 約 34 秒)
   if (curT >= A[A.length - 1].t) { byT(A[A.length - 1].t); pause(); return; }
   byT(curT); requestAnimationFrame(tick);
 }
@@ -498,7 +504,7 @@ function initMap() {
   const nearRow = e => { let bi = -1, bd = 22; PV.rows.forEach((r, i) => { const p = map.project([r[1], r[0]]), d = Math.hypot(p.x - e.point.x, p.y - e.point.y); if (d < bd) { bd = d; bi = i; } }); return bi; };
   map.on('mousemove', e => { if (playing) return; const i = nearRow(e); map.getCanvas().style.cursor = i >= 0 ? 'crosshair' : ''; if (i >= 0) byIndex(i); });
   map.on('click', e => { const i = nearRow(e); if (i >= 0) { pause(); byIndex(i); } });
-  map.on('load', () => { ready = true; paintMap(true); show(cur, curT); });
+  map.on('load', () => { document.querySelectorAll('.maplibregl-ctrl-attrib').forEach(e => { e.classList.remove('maplibregl-compact-show'); e.removeAttribute('open'); }); ready = true; paintMap(true); show(cur, curT); });
   { let to; new ResizeObserver(() => { clearTimeout(to); to = setTimeout(() => ready && paintMap(true), 120); }).observe($('#realmap')); }   // 版面高度變了就重新框住路線
 }
 
