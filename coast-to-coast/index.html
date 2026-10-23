@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="zh-Hant">
 <meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>橫跨不列顛</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=DM+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&display=swap">
@@ -929,6 +930,18 @@ const BASE = ["機票與英國來回交通", "英國 ETA 電子旅行許可（�
   "英鎊現金與可用的信用卡", "防水外套與雨褲", "防水背包套與內袋", "已磨合的防水登山鞋與備用襪", "登山杖", "OS 地圖或離線地圖 App，加路書", "行動電源與英規 G 型轉接頭", "護照與保險資料紙本"];
 let saved = {};
 try { saved = JSON.parse(localStorage.getItem("c2c-check") || "{}"); } catch (e) {}
+// 雲端同步（Firestore REST）：網址帶 #k=密鑰 才啟用，沒有就只存本機。規則只放行帶這把密鑰的兩個文件。
+const SYNC = (() => {
+  const API = "https://firestore.googleapis.com/v1/projects/travel-plans-ytw/databases/(default)/documents/trips/", KEY = "AIzaSyAo1lMYkAOJcjh36DGJerCN2EJ_R7rZ8c4", SUF = "c2c";
+  let k = "";
+  try { const m = /[#&]k=([\w-]+)/.exec(location.hash); if (m) localStorage.setItem("trip-key", m[1]); k = localStorage.getItem("trip-key") || ""; } catch (e) {}
+  const url = () => API + k + "-" + SUF + "?key=" + KEY;
+  const pull = async () => { const r = await fetch(url()); if (r.status === 404) return {}; if (!r.ok) throw r.status; return JSON.parse((((await r.json()).fields || {}).check || {}).stringValue || "{}"); };
+  // ponytail: 先讀再寫，兩人同一秒勾同一份清單才會互蓋，夠用
+  const push = async (key, val) => { if (!k) return; try { const c = {...await pull(), [key]: val}; await fetch(url() + "&updateMask.fieldPaths=check", {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fields: {check: {stringValue: JSON.stringify(c)}}})}); } catch (e) {} };
+  const sync = async apply => { if (!k) return; try { apply(await pull()); } catch (e) {} };
+  return {push, sync};
+})();
 const checks = (el, items) => { el.innerHTML = items.map(t => `<li><label><input type="checkbox"${saved[t] ? " checked" : ""} data-k="${t.replace(/"/g, "&quot;")}"><span>${t}</span></label></li>`).join(""); };
 function lists() {
   const names = [...new Set(days.filter(x => !x.fly).map(x => x.sleep))];
@@ -940,6 +953,7 @@ document.addEventListener("change", e => {
   if (!k) return;
   saved[k] = e.target.checked;
   try { localStorage.setItem("c2c-check", JSON.stringify(saved)); } catch (err) {}
+  SYNC.push(k, e.target.checked);
 });
 
 
@@ -1365,4 +1379,7 @@ $("#huts").addEventListener("click", e => {
 });
 
 setPlan(cur);
+const applyRemote = r => { Object.assign(saved, r); try { localStorage.setItem("c2c-check", JSON.stringify(saved)); } catch (err) {} lists(); };
+SYNC.sync(applyRemote);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) SYNC.sync(applyRemote); });
 </script>
