@@ -579,7 +579,7 @@ const STEPS = {
     w: "<b>Pera 到 Gardeccia 的接駁小巴已停駛</b>（2019 年資料），不要預設有車。纜車末班時間要先查，錯過就得多走很長一段。"},
   v2: {o: "Rifugio Vajolet 2,243 m → Gartlhütte / Rif. Re Alberto I 2,621 m → Santnerpasshütte / Rif. Passo Santner 2,734 m", r: "從 Fassa 側走上去，不經鋼索。", time: "約 2~3 小時",
     s: [["08:00", "早餐後出發，往 Gartlhütte（約 1 小時）"], ["09:30", "Gartlhütte 休息，補水"], ["10:30", "往 Santnerpass 最後一段（約 15~40 分）"], ["11:30", "抵達 Santnerpasshütte，放行李"], ["午後", "休息、拍照；這天不用趕"], ["日落前", "提早 30 分鐘到隘口卡位，看 Vajolet 三塔"]],
-    n: ["Santnerpasshütte 在 Santnerpass（2,734 m），夏季營業。舊屋是 1956 年建的，但 2023 年 7 月與 2026 年 6 月的照片都是新蓋的銀色金屬外牆建築，我沒查到啟用時間、床位數與現在的預約方式，訂房時請問清楚。隘口兩側都是陡坡，風大時溫度會降得很快。", "<b>enrosadira</b>：白雲岩在低角度光線下會變粉紅，通常出現在日落前後。日落後那十幾分鐘常是最紅的，不要太早離開隘口。"],
+    n: ["Santnerpasshütte 在 Santnerpass（2,734 m），夏季營業。舊屋是 1956 年建的，但 2023 年 7 月與 2026 年 6 月的照片都是新蓋的銀色金屬外牆建築，我沒查到啟用時間、床位數與現在的預約方式，訂房時請問清楚。隘口兩側都是陡坡，風大時溫度會降得很快。", "房型只有雙人房與 3、4、6 人房（最多 45 人），沒有大通鋪。半食宿含素食四道式晚餐與早餐，飲料另計，要自備毛巾與室內拖鞋。預約只收 email，要拿到書面確認。", "<b>enrosadira</b>：白雲岩在低角度光線下會變粉紅，通常出現在日落前後。日落後那十幾分鐘常是最紅的，不要太早離開隘口。"],
     w: "<b>不走 Santner 鋼索（B/C 級）。</b>有評論提到短時間內有人墜落，除非有攀登經驗與裝備，一律走 Fassa 側步道；濕滑、起霧或有殘雪時都不要上。"},
   rw4: {o: "Santnerpasshütte → Gartlhütte → Rifugio Vajolet → Passo Principe / Grasleitenpass → Tierser Alpl-Hütte / Rif. Alpe di Tires 2,440 m", r: "走過 Rosengarten 山脊的一串山屋，最後下到 Tierser Alpl。",
     s: [["08:00", "早餐後出發，下到 Gartlhütte 一帶"], ["10:00", "經 Vajolet 與 Preuss 山屋，補水"], ["11:30", "上 Passo Principe，往 Molignon 方向"], ["14:00", "下到 Tierser Alpl（共約 4~5 小時）", 1], ["傍晚", "Tierser Alpl 在 Alpe di Tires 上方，視野開闊"]],
@@ -664,7 +664,7 @@ const HUTS = {
   "Rif. Pian di Cengia": {q: "Rifugio Pian di Cengia Büllelejochhütte", info: "https://www.dolomitisuperski.com/en/plan-and-book/accommodation/3-Zinnen-Dolomites/Rifugio-Pian-di-Cengia", pri: 3, note: "沒找到官網，只接受電話預約，約 15 床。有來源寫營業 6/1 到 9/15，要確認。"},
   "Rif. Lagazuoi": {pri: 3, url: "https://rifugiolagazuoi.com/", mail: "info@rifugiolagazuoi.com", note: "各來源營業期不一致（有寫 9/15 關閉），要確認 2027 年的日期。"},
   "Rif. Nuvolau": {pri: 3, url: "https://www.prenotarifugi.cai.it/en/detail/?id=5766", note: "CAI 預約平台有上架，24 床左右。管理單位會換，看當年資訊。"},
-  "Santnerpasshütte": {pri: 3, info: "https://www.planetmountain.com/en/mountain-huts/rifugio-passo-santner-santnerpasshutte-valle-di-fassa-fassatal.html", tel: "+39 337 1435665", note: "夏季營業，建議最早訂。照片顯示已改建成新屋，下面的資料頁與電話可能是舊的，電話取自 PlanetMountain，兩個來源的經理名字不同，要再確認。"},
+  "Santnerpasshütte": {pri: 3, url: "https://www.santnerpass.com", info: "https://www.santnerpass.com/vitto-e-alloggio/", mail: "info@santnerpass.com", tel: "+39 337 1435665", when: "2026 年 11 月開放，一開放就寄信", note: "官網寫 2027 年預約從 2026 年 11 月開始，<b>只收 email，不收 WhatsApp</b>，收到書面確認才算數，通常 2 天內回覆，沒收到先看垃圾信件。訂金每人 €50，任何情況都不退；7 天內取消可折抵同季一晚（視空房），更早取消整筆沒收，建議買旅平險。房型是雙人房與 3、4、6 人房，最多 45 人；半食宿含素食四道式晚餐與早餐，飲料另計；2027 年價格官網寫還在訂（搜尋結果曾見 2026 年起 €105 一人）。要自備毛巾與室內拖鞋。有網站說只收現金，官網沒寫。開放季節官網沒寫，各來源差很多。新屋 2023 年 6 月 10 日開幕。"},
   "Rif. Vajolet": {pri: 2, url: "https://www.rifugiovajolet.com", mail: "info@rifugiovajolet.com", tel: "+39 335 7073258", note: "6 月到 10 月營業。"},
   "Tierser Alpl-Hütte": {q: "Tierser Alpl Hütte Rifugio Alpe di Tires", info: "https://www.valgardena.it/it/indirizzi/dettagli-gastronomia/base/company/seiser-alm/tierser-alpl/C62F816B8B8B4E6E12AA11D37E118A21/", pri: 2, note: "沒找到官網。有目錄列 2026 夏季營業 5/27 到 10/18，每天 7 點到 22 點。"},
   "Rif. Biella": {url: "https://rifugiobiella.it", mail: "info@rifugiobiella.com", tel: "+39 335 1431251", pri: 2, info: "https://cortina.dolomiti.org/dove-mangiare/rifugio-biella-en", note: "有來源寫營業 6/20 到 9/20。2022 年後經營者換過，聯絡方式要再確認。"},
@@ -897,7 +897,7 @@ function booking() {
     const note = isHut ? (H.note || "") : (/Braies/.test(r.name) ? "湖區住宿熱門，要早訂。" : /米蘭/.test(r.name) ? "回程班機前一晚，離機場要近。" : /威尼斯/.test(r.name) ? "Listolade 下山當晚。" : "");
     return `<tr><td><b>${r.name}</b></td><td>${ZH(r.dt)}<small>${r.nights} 晚</small></td>
       <td>${isHut ? `<span class="pri pri-${H.pri || 2}">${PRI[H.pri || 2]}</span>` : ""}</td>
-      <td><small>${isHut ? WHEN[H.pri || 2] : "3~4 月，選可免費取消"}</small></td>
+      <td><small>${isHut ? (H.when || WHEN[H.pri || 2]) : "3~4 月，選可免費取消"}</small></td>
       <td>${how}</td><td><small>${note}</small></td>
       <td>${isHut ? `<button class="btn" data-mail="${days.findIndex(d => d.dt === r.dt && d.sleep === r.name)}" data-n="${r.nights}">複製訂房信</button>` : ""}</td></tr>`;
   };
@@ -908,11 +908,12 @@ function booking() {
   $("#bookhint").innerHTML = `<b>什麼時候要訂：山屋最早，建議 2027 年 1~2 月就開始</b><ul>
     <li><b>最先訂</b>：${topHuts.join("、")}。預約一開放就訂。</li>
     <li>其他山屋 2~3 月；鎮上住宿與機票 3~4 月，選可免費取消的。</li>
-    <li>各山屋官方的開放預約日我沒查到，要看各山屋官網或寄信詢問。<a href="#book">看完整時間表與每間山屋怎麼訂 ↓</a></li></ul>`;
+    ${hutRows.some(r => r.name === "Santnerpasshütte") ? `<li><b>Santnerpasshütte</b>：官網寫 2027 年預約 <b>2026 年 11 月開始</b>，只收 email（info@santnerpass.com），拿到書面確認才算數，訂金每人 €50 不退。</li>` : ""}
+    <li>其他山屋官方的開放預約日我沒查到，要看各山屋官網或寄信詢問。<a href="#book">看完整時間表與每間山屋怎麼訂 ↓</a></li></ul>`;
 
   const first = days[1].dt, y = d => `${d.getMonth() + 1} 月`;
   $("#timeline").innerHTML = [
-    ["2026 年 11~12 月（現在）", "選好天數，列出要訂的山屋。到各山屋官網或寫信問「2027 年何時開放預約」，我沒有查到官方日期。"],
+    ["2026 年 11~12 月（現在）", "選好天數，列出要訂的山屋。Santnerpasshütte 官網寫 2027 年預約從 2026 年 11 月開始，要寄 email（不收 WhatsApp），訂金每人 €50 不退，先備好護照上的英文姓名與人數。其他山屋到官網或寫信問「2027 年何時開放預約」，我沒有查到官方日期。"],
     ["2027 年 1~3 月", "最先訂 Locatelli、Lagazuoi、Nuvolau、Santnerpasshütte、Pian di Cengia 等熱門山屋，一旦開放預約就寄信或線上訂。"],
     ["2027 年 3~4 月", "訂其餘山屋。山屋確定後再訂機票，或先買可改期的票。"],
     ["2027 年 4~5 月", "確認各山屋的訂金、取消與改期條款，並存下書面確認。買好含登山與直升機搜救的旅平險，訂鎮上住宿。"],
