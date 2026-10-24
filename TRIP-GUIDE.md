@@ -24,17 +24,71 @@
 - 推送前，先確認使用者有要你發佈；使用者貼過「改完就發佈」的規則時，視為授權發佈該行程。
 - 這個倉庫的網站是公開的網址，不要把個人資料、護照號碼、訂位代號、密碼寫進去。
 
-## 2. 雲端勾選同步（SYNC）：一定要保留
+## 2. 雲端勾選同步（SYNC + Firebase）：一定要保留
 
-清單的勾選會用 Firestore 同步給兩個人。`dolomites/index.html` 裡有五處，**刪掉任何一處就不會同步**：
+### 2.1 架構與帳號
+
+- 網頁放 GitHub Pages（公開），勾選狀態存 Firebase 的 Firestore 資料庫。**不用 Firebase SDK**，直接用 `fetch` 打 Firestore REST API，所以不需要打包工具、不需要 CDN script。
+- Firebase 專案：`travel-plans-ytw`（Spark 免費方案，資料庫 `(default)`，位置 `asia-east1` 台灣）。擁有者是使用者的 Google 帳號 `ccyu1008@gmail.com`，控制台 `https://console.firebase.google.com/project/travel-plans-ytw/firestore`。
+- 網頁用的 Web API key 已經寫在現有的 `index.html` 裡（Web API key 本來就是公開的，安全靠 Firestore 規則，不是靠藏 key）。新行程要用時從 `dolomites/index.html` 複製，**不要抄進這份文件**。
+- **密鑰（secret）絕對不可以寫進這個倉庫、這份文件、commit 訊息或任何會公開的地方**，因為倉庫是公開的。密鑰只存在使用者手上（分享給太太的連結 `#k=…`）和 Firebase 規則裡。需要時請使用者提供，或請使用者自己貼進連結。
+
+### 2.2 運作方式
+
+- 資料位置：集合 `trips`，文件 `trips/<密鑰>-<SUF>`，例如 `<密鑰>-dolomites`、`<密鑰>-c2c`。每份文件只有一個欄位 `check`，內容是 JSON 字串：`{"清單項目的文字": true/false}`。
+- 啟用方式：網址帶 `#k=<密鑰>`（第一次開啟後密鑰存進該瀏覽器的 localStorage `trip-key`，之後不帶也能同步）。**沒有密鑰就不連雲端**，勾選只存在自己的瀏覽器，不會影響別人。給朋友看就給不帶 `#k=` 的連結。
+- 讀：頁面載入時、以及分頁從背景切回前景（`visibilitychange`）時，`SYNC.sync(applyRemote)` 拉一次雲端資料，合併進本機 `saved` 再重畫清單。**不是即時推送**，沒有 onSnapshot。
+- 寫：每次勾選或取消，`SYNC.push(key, val)` 先讀雲端最新、改一個項目、再整份寫回（`PATCH ...&updateMask.fieldPaths=check`）。兩個人同一秒勾同一份清單才會互蓋，夠用。
+- 只同步勾選。方案選擇、地圖模式等顯示偏好只存本機，不同步。
+- 清單項目的 key 就是項目的**文字**。改了清單文字，舊的勾選就對不上（等於重置那一項）。
+
+### 2.3 Firestore 規則（鎖在雲端，不在程式裡）
+
+規則只放行特定文件，其他一律拒絕。目前的形式（密鑰用 `<密鑰>` 代替）：
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /trips/{id} {
+      allow get, create, update: if id in ['<密鑰>-dolomites', '<密鑰>-c2c'];
+    }
+  }
+}
+```
+
+- 沒有 `list`、沒有 `delete`，所以別人列不出文件、也刪不掉。文件名裡有密鑰，猜不到就讀寫不了。
+- `qilai-nanhua` 沒有同步功能，不在規則裡，也不需要 `SYNC`。
+- 規則改完要按「發佈」，約 1 分鐘生效。
+
+### 2.4 必須保留的五處
+
+`dolomites/index.html`（以及 `coast-to-coast/index.html`）裡有五處，**刪掉任何一處就不會同步**：
 
 1. `noindex` meta。
-2. `const SYNC = (() => {...})();` 整段（網址帶 `#k=密鑰` 才啟用，沒有就只存本機）。
+2. `const SYNC = (() => {...})();` 整段。
 3. 勾選的 change 事件裡的 `SYNC.push(k, e.target.checked);`
 4. 檔案尾端的 `const applyRemote = ...`、`SYNC.sync(applyRemote);`。
 5. `document.addEventListener("visibilitychange", ...)` 那一行。
 
-新行程要同步：複製整段 `SYNC` 與尾端三行，改 `SUF = "<新行程代號>"`，localStorage 的 key 前綴也改成新行程代號（例如 `dolomiti-check` → `<代號>-check`）。**Firestore 的規則只放行特定文件，新行程的文件需要使用者去 Firebase 規則加，我不知道目前規則內容，要先問使用者。** 不要把 API key 抄進這份文件，要用時從現有檔案複製。
+### 2.5 新行程要同步時
+
+1. 複製整段 `SYNC` 與尾端三行，改 `SUF = "<新行程代號>"`，localStorage 的 key 前綴改成新代號（例如 `dolomiti-check` → `<代號>-check`）。重畫清單用的函式名稱要對得上（目前兩頁都是 `lists()`）。
+2. **請使用者去 Firebase 規則加新文件**：控制台 → Firestore → 規則 → 在 `id in [...]` 清單加 `'<密鑰>-<新代號>'` → 發佈。我不知道密鑰，所以要請使用者做，或使用者提供密鑰後用 Claude in Chrome 協助（規則編輯器是 Monaco，全選後貼成單行最穩，不要逐行打字，會被自動縮排與自動補括號弄亂）。沒加規則的話，新行程會寫入失敗並被靜默吞掉（`catch (e) {}`），畫面看起來正常但沒有同步。
+3. 不需要同步的行程（像 `qilai-nanhua`）不要放 `SYNC`。
+
+### 2.6 驗證同步
+
+- 用 curl 或瀏覽器的 `fetch` 打 `https://firestore.googleapis.com/v1/projects/travel-plans-ytw/databases/(default)/documents/trips/<密鑰>-<SUF>?key=<API key>`：讀到 404 表示文件還沒建立（正常）；寫入成功回 200。
+- 預期的拒絕：亂猜的文件名寫入回 403；列出整個 `trips` 回 403。
+- 實機測試：開 `…/<資料夾>/#k=<密鑰>`，勾一項，確認雲端文件有出現，再取消勾選還原。測試完不要留下勾選。
+- 排錯：403 = 文件名不在規則清單（密鑰錯或規則沒加／沒發佈完）；一直 404 讀不到 = 還沒有人寫過，正常；勾了沒反應 = 檢查五處是否被刪、`SUF` 是否打錯。
+
+### 2.7 之後可以升級（目前沒做，使用者要才做）
+
+- 唯讀模式：沒有密鑰時把勾選框設成停用，並顯示「唯讀」。
+- Google 帳號白名單：用 Firebase Authentication，規則改成只放行指定 email，連結外洩也不會被改。需要在 Authentication 開 Google 登入並加授權網域。
+- 即時同步：改用 Firestore 的 listen（需要 SDK），目前用「載入與切回前景時拉取」就夠。
 
 ## 3. 做新行程的流程
 
@@ -161,7 +215,7 @@
 ## 13. 新增一個行程的檢查表
 
 1. 讀完這份，打開 `dolomites/index.html` 當樣板。
-2. 在 `travel-site` 新增資料夾與 `index.html`（從樣板複製，**保留第 2 節的五處**，改 `SUF`、localStorage key、標題）。
+2. 在 `travel-site` 新增資料夾與 `index.html`（從樣板複製，**保留第 2.4 節的五處**，改 `SUF`、localStorage key、標題；要同步就請使用者依 2.5 在 Firebase 規則加新文件）。
 3. 問清楚需求（3-A）。
 4. 研究、分級來源、列出未查證項目。
 5. 設計 2~3 個真的不同的方案，寫特色與缺點。
